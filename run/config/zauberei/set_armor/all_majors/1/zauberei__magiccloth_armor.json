@@ -1,0 +1,76 @@
+{
+  "displayName": "Magiccloth Armor",
+  "parts": {
+    "1Part": {
+      "Effects": [
+        {
+          "Effect": "ars_nouveau:flight",
+          "Amplifier": 0
+        }
+      ],
+      "Attributes": {}
+    },
+    "2Part": {
+      "Effects": [
+        {
+          "Effect": "ars_nouveau:flight",
+          "Amplifier": 0
+        },
+        {
+          "Effect": "minecraft:dolphins_grace",
+          "Amplifier": 0
+        }
+      ],
+      "Attributes": {
+        "ars_nouveau:ars_nouveau.perk.warding": {
+          "value": 2.0,
+          "modifier": "addition"
+        }
+      }
+    },
+    "3Part": {
+      "Effects": [
+        {
+          "Effect": "minecraft:speed",
+          "Amplifier": 1
+        },
+        {
+          "Effect": "minecraft:night_vision",
+          "Amplifier": 0
+        }
+      ],
+      "Attributes": {
+        "minecraft:generic.armor": {
+          "value": 5.0,
+          "modifier": "addition"
+        },
+        "minecraft:generic.movement_speed": {
+          "value": 0.1,
+          "modifier": "multiply_base"
+        }
+      }
+    },
+    "4Part": {
+      "Effects": [
+        {
+          "Effect": "minecraft:speed",
+          "Amplifier": 1
+        },
+        {
+          "Effect": "minecraft:night_vision",
+          "Amplifier": 0
+        }
+      ],
+      "Attributes": {
+        "minecraft:generic.armor": {
+          "value": 5.0,
+          "modifier": "addition"
+        },
+        "minecraft:generic.movement_speed": {
+          "value": 0.1,
+          "modifier": "multiply_base"
+        }
+      }
+    }
+  }
+}

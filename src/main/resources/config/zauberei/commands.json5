@@ -1,0 +1,46 @@
+{
+  "aliases": {
+    "smelt_iron": ["minecraft:story/smelt_iron"],
+    "mine_diamond": ["minecraft:story/mine_diamond"],
+    "kill_mob": ["minecraft:adventure/kill_a_mob"]
+  },
+  "tagRules": [
+    { "anyOf": ["smelt_iron"], "tag": "basic_tasks" },
+    { "anyOf": ["mine_diamond"], "tag": "advanced_tasks" },
+    { "anyOf": ["kill_mob"], "tag": "hunter" }
+  ],
+  "tierRules": [
+    { "anyOf": ["smelt_iron"], "tier": 1 },
+    { "anyOf": ["mine_diamond"], "tier": 2 }
+  ],
+  "tierWindows": {
+    "1": [1, 2],
+    "2": [3, 5],
+    "3": [30, 60]
+  },
+  "commands": [
+    {
+      "when": { "anyTags": ["basic_tasks"], "minTier": 1 },
+      "pool": [
+        "say Hello {player}",
+        "give @s minecraft:bread 1"
+      ],
+      "position": "nearby"
+    },
+    {
+      "when": { "anyTags": ["hunter"], "minTier": 1 },
+      "pool": [
+        "summon minecraft:spider {x} {y} {z}"
+      ],
+      "position": "onPosition"
+    },
+    {
+      "when": { "anyTags": ["advanced_tasks"], "minTier": 2 },
+      "pool": [
+        "give @s minecraft:diamond 64",
+        "effect give {player} minecraft:strength 60 1"
+      ],
+      "position": "away"
+    }
+  ]
+}

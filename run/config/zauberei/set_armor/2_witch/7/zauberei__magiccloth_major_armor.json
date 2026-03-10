@@ -1,0 +1,66 @@
+{
+  "displayName": "Naturalist Boni",
+  "parts": {
+    "2Part": {
+      "Effects": [],
+      "Attributes": {
+        "apothic_attributes:healing_received": {
+          "value": 3.0,
+          "modifier": "addition"
+        },
+        "apothic_attributes:life_steal": {
+          "value": 0.5,
+          "modifier": "addition"
+        }
+      }
+    },
+    "3Part": {
+      "Effects": [
+        {
+          "Effect": "twilightdelight:poison_range",
+          "Amplifier": 1
+        }
+      ],
+      "Attributes": {
+        "apothic_attributes:healing_received": {
+          "value": 3.0,
+          "modifier": "addition"
+        },
+        "ars_nouveau:ars_nouveau.perk.wixie": {
+          "value": 6.0,
+          "modifier": "addition"
+        },
+        "apothic_attributes:life_steal": {
+          "value": 0.5,
+          "modifier": "addition"
+        }
+      }
+    },
+    "4Part": {
+      "Effects": [
+        {
+          "Effect": "twilightdelight:poison_range",
+          "Amplifier": 2
+        }
+      ],
+      "Attributes": {
+        "apothic_attributes:healing_received": {
+          "value": 3.0,
+          "modifier": "addition"
+        },
+        "ars_nouveau:ars_nouveau.perk.wixie": {
+          "value": 6.0,
+          "modifier": "addition"
+        },
+        "apothic_attributes:life_steal": {
+          "value": 0.5,
+          "modifier": "addition"
+        },
+        "irons_spellbooks:blood_spell_power": {
+          "value": 3.0,
+          "modifier": "multiply_total"
+        }
+      }
+    }
+  }
+}

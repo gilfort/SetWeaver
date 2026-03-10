@@ -1,0 +1,37 @@
+{
+  //creative tab
+  "creativetab.zauberei.zauberei_tab": "Zauberei",
+
+
+  //tags
+
+  "tag.item.zauberei.magiccloth_armor": "Magiccloth Armor",
+
+
+  //items
+  "item.zauberei.magiccloth": "Magiccloth",
+  "item.zauberei.introductionletter": "Introduction Letter",
+
+
+  //armor
+  "item.zauberei.magiccloth_helmet": "Magiccloth Hood",
+  "item.zauberei.magiccloth_chestplate": "Magiccloth Robe",
+  "item.zauberei.magiccloth_leggings": "Magiccloth Pants",
+  "item.zauberei.magiccloth_boots": "Magiccloth Boots",
+  "item.zauberei.magiccloth_helmet_alt": "Magiccloth Helmet",
+  "item.zauberei.magiccloth_chestplate_alt": "Magiccloth Chestplate",
+  "item.zauberei.magiccloth_leggings_alt": "Magiccloth Leggings",
+  "item.zauberei.magiccloth_boots_alt": "Magiccloth Boots",
+  "item.zauberei.magiccloth_helmet_perks": "Magiccloth Hood",
+  "item.zauberei.magiccloth_chestplate_perks": "Magiccloth Robe",
+  "item.zauberei.magiccloth_leggings_perks": "Magiccloth Pants",
+  "item.zauberei.magiccloth_boots_perks": "Magiccloth Boots",
+
+  /*
+  * Thoughts and agsnoce comments
+  */
+
+  "zauberei.agnosce_intro.0": "🔷 AGNOSCE System initiated",
+  "zauberei.agnosce_intro.1": "🔷 Transfer is being secured"
+
+}

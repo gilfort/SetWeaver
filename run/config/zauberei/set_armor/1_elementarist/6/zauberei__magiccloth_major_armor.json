@@ -1,0 +1,98 @@
+{
+  "displayName": "Elemetalist Boni",
+  "parts": {
+    "2Part": {
+      "Effects": [],
+      "Attributes": {
+        "irons_spellbooks:cooldown_reduction": {
+          "value": 1.2,
+          "modifier": "addition"
+        },
+        "irons_spellbooks:fire_spell_power": {
+          "value": 0.5,
+          "modifier": "addition"
+        },
+        "irons_spellbooks:lightning_spell_power": {
+          "value": 0.5,
+          "modifier": "addition"
+        },
+        "irons_spellbooks:nature_spell_power": {
+          "value": 0.5,
+          "modifier": "addition"
+        },
+        "irons_spellbooks:ice_spell_power": {
+          "value": 0.5,
+          "modifier": "addition"
+        }
+      }
+    },
+    "3Part": {
+      "Effects": [
+        {
+          "Effect": "ars_nouveau:shielding",
+          "Amplifier": 0
+        }
+      ],
+      "Attributes": {
+        "irons_spellbooks:cooldown_reduction": {
+          "value": 1.2,
+          "modifier": "addition"
+        },
+        "irons_spellbooks:fire_spell_power": {
+          "value": 0.5,
+          "modifier": "addition"
+        },
+        "irons_spellbooks:lightning_spell_power": {
+          "value": 0.5,
+          "modifier": "addition"
+        },
+        "irons_spellbooks:nature_spell_power": {
+          "value": 0.5,
+          "modifier": "addition"
+        },
+        "irons_spellbooks:ice_spell_power": {
+          "value": 0.5,
+          "modifier": "addition"
+        }
+      }
+    },
+    "4Part": {
+      "Effects": [
+        {
+          "Effect": "ars_nouveau:shielding",
+          "Amplifier": 1
+        }
+      ],
+      "Attributes": {
+        "irons_spellbooks:cooldown_reduction": {
+          "value": 1.2,
+          "modifier": "addition"
+        },
+        "gtbcs_spell_lib:spell_crit_damage": {
+          "value": 0.5,
+          "modifier": "multiply_total"
+        },
+        "ars_nouveau:sauce.perk.spell_crit_damage": {
+          "value": 0.5,
+          "modifier": "multiply_total"
+        },
+        "irons_spellbooks:fire_spell_power": {
+          "value": 0.5,
+          "modifier": "addition"
+        },
+        "irons_spellbooks:lightning_spell_power": {
+          "value": 0.5,
+          "modifier": "addition"
+        },
+        "irons_spellbooks:nature_spell_power": {
+          "value": 0.5,
+          "modifier": "addition"
+        },
+        "irons_spellbooks:ice_spell_power": {
+          "value": 0.5,
+          "modifier": "addition"
+        }
+      }
+    }
+  }
+}

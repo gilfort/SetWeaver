@@ -1,0 +1,58 @@
+{
+  "displayName": "Naturalist Boni",
+  "parts": {
+    "2Part": {
+      "Effects": [],
+      "Attributes": {
+        "apothic_attributes:healing_received": {
+          "value": 1.8,
+          "modifier": "addition"
+        },
+        "minecraft:generic.luck": {
+          "value": 6.8,
+          "modifier": "addition"
+        }
+      }
+    },
+    "3Part": {
+      "Effects": [
+        {
+          "Effect": "farmersdelight:comfort",
+          "Amplifier": 0
+        }
+      ],
+      "Attributes": {
+        "apothic_attributes:healing_received": {
+          "value": 1.8,
+          "modifier": "addition"
+        },
+        "minecraft:generic.luck": {
+          "value": 6.8,
+          "modifier": "addition"
+        }
+      }
+    },
+    "4Part": {
+      "Effects": [
+        {
+          "Effect": "farmersdelight:comfort",
+          "Amplifier": 1
+        }
+      ],
+      "Attributes": {
+        "apothic_attributes:healing_received": {
+          "value": 1.8,
+          "modifier": "addition"
+        },
+        "minecraft:generic.luck": {
+          "value": 6.8,
+          "modifier": "addition"
+        },
+        "ars_nouveau:ars_nouveau.perk.wixie": {
+          "value": 3.5,
+          "modifier": "addition"
+        }
+      }
+    }
+  }
+}

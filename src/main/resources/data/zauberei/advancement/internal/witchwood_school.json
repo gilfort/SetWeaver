@@ -1,0 +1,17 @@
+{
+  "criteria": {
+    "spawn_location": {
+      "trigger": "minecraft:location",
+      "conditions": {
+        "position": {
+          "x": { "min": -5, "max": 5 },
+          "y": { "min": 248, "max": 255 },
+          "z": { "min": -5, "max": 5 }
+        }
+      }
+    }
+  },
+  "rewards": {
+    "function": "zauberei:thoughts/scene_intro"
+  }
+}

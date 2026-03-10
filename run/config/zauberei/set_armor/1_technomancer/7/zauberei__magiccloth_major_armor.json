@@ -1,0 +1,62 @@
+{
+  "displayName": "Technomancer Boni",
+  "parts": {
+    "2Part": {
+      "Effects": [],
+      "Attributes": {
+        "ars_nouveau:sauce.perk.mana_discount": {
+          "value": 75.0,
+          "modifier": "addition"
+        },
+        "irons_spellbooks:cast_time_reduction": {
+          "value": 2.7,
+          "modifier": "addition"
+        }
+      }
+    },
+    "3Part": {
+      "Effects": [
+        {
+          "Effect": "minecraft:resistance",
+          "Amplifier": 0
+        }
+      ],
+      "Attributes": {
+        "ars_nouveau:sauce.perk.mana_discount": {
+          "value": 75.0,
+          "modifier": "addition"
+        },
+        "irons_spellbooks:cast_time_reduction": {
+          "value": 2.7,
+          "modifier": "addition"
+        }
+      }
+    },
+    "4Part": {
+      "Effects": [
+        {
+          "Effect": "minecraft:resistance",
+          "Amplifier": 1
+        }
+      ],
+      "Attributes": {
+        "ars_nouveau:sauce.perk.mana_discount": {
+          "value": 75.0,
+          "modifier": "addition"
+        },
+        "irons_spellbooks:cast_time_reduction": {
+          "value": 2.7,
+          "modifier": "addition"
+        },
+        "minecraft:player.block_interaction_range": {
+          "value": 5.0,
+          "modifier": "addition"
+        },
+        "minecraft:player.entity_interaction_range": {
+          "value": 5.0,
+          "modifier": "addition"
+        }
+      }
+    }
+  }
+}

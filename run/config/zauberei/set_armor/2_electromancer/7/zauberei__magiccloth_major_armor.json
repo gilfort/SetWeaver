@@ -1,0 +1,66 @@
+{
+  "displayName": "Technomancer Boni",
+  "parts": {
+    "2Part": {
+      "Effects": [],
+      "Attributes": {
+        "ars_nouveau:sauce.perk.mana_discount": {
+          "value": 85.0,
+          "modifier": "addition"
+        },
+        "irons_spellbooks:cast_time_reduction": {
+          "value": 3.0,
+          "modifier": "addition"
+        }
+      }
+    },
+    "3Part": {
+      "Effects": [
+        {
+          "Effect": "minecraft:resistance",
+          "Amplifier": 1
+        }
+      ],
+      "Attributes": {
+        "ars_nouveau:sauce.perk.mana_discount": {
+          "value": 85.0,
+          "modifier": "addition"
+        },
+        "irons_spellbooks:cast_time_reduction": {
+          "value": 3.0,
+          "modifier": "addition"
+        },
+        "irons_spellbooks:lightning_spell_power": {
+          "value": 1.5,
+          "modifier": "addition"
+        }
+      }
+    },
+    "4Part": {
+      "Effects": [
+        {
+          "Effect": "minecraft:resistance",
+          "Amplifier": 2
+        }
+      ],
+      "Attributes": {
+        "ars_nouveau:sauce.perk.mana_discount": {
+          "value": 85.0,
+          "modifier": "addition"
+        },
+        "irons_spellbooks:cast_time_reduction": {
+          "value": 3.0,
+          "modifier": "addition"
+        },
+        "irons_spellbooks:lightning_spell_power": {
+          "value": 1.5,
+          "modifier": "addition"
+        },
+        "aces_spell_utils:spell_res_penetration": {
+          "value": 0.8,
+          "modifier": "addition"
+        }
+      }
+    }
+  }
+}

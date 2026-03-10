@@ -1,0 +1,19 @@
+{
+  "displayName": "ars_nouveau:magic_legs",
+  "parts": {
+    "1Part": {
+      "Effects": [
+        {
+          "Effect": "minecraft:fire_resistance",
+          "Amplifier": 0
+        }
+      ],
+      "Attributes": {
+        "minecraft:generic.armor": {
+          "value": 2.0,
+          "modifier": "multiply_base"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "displayName": "Example Armor Set",
+  "parts": {
+    "2Part": {
+      "Effects": [
+        { "Effect": "minecraft:speed", "Amplifier": 0 }
+      ],
+      "Attributes": {
+        "minecraft:generic.armor": { "value": 2.0, "modifier": "addition" }
+      }
+    },
+    "4Part": {
+      "Effects": [
+        { "Effect": "minecraft:speed", "Amplifier": 1 },
+        { "Effect": "minecraft:night_vision", "Amplifier": 0 }
+      ],
+      "Attributes": {
+        "minecraft:generic.armor": { "value": 5.0, "modifier": "addition" },
+        "minecraft:generic.movement_speed": { "value": 0.1, "modifier": "multiply_base" }
+      }
+    }
+  }
+}

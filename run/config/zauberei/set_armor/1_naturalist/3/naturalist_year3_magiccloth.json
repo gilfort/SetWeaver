@@ -1,0 +1,118 @@
+{
+  "parts": {
+    "1Part": {
+      "Effects": [],
+      "Attributes": {
+        "ars_nouveau:ars_nouveau.perk.max_mana": {
+          "value": 60,
+          "modifier": "addition"
+        },
+        "irons_spellbooks:max_mana": {
+          "value": 75,
+          "modifier": "addition"
+        },
+        "ars_nouveau:ars_nouveau.perk.mana_regen": {
+          "value": 2,
+          "modifier": "addition"
+        },
+        "irons_spellbooks:mana_regen": {
+          "value": 0.3125,
+          "modifier": "multiply_base"
+        },
+        "minecraft:generic.armor": {
+          "value": 1.25,
+          "modifier": "addition"
+        }
+      }
+    },
+    "2Part": {
+      "Effects": [],
+      "Attributes": {
+        "ars_nouveau:ars_nouveau.perk.max_mana": {
+          "value": 120,
+          "modifier": "addition"
+        },
+        "irons_spellbooks:max_mana": {
+          "value": 150,
+          "modifier": "addition"
+        },
+        "ars_nouveau:ars_nouveau.perk.mana_regen": {
+          "value": 4,
+          "modifier": "addition"
+        },
+        "irons_spellbooks:mana_regen": {
+          "value": 0.625,
+          "modifier": "multiply_base"
+        },
+        "minecraft:generic.armor": {
+          "value": 2.5,
+          "modifier": "addition"
+        }
+      }
+    },
+    "3Part": {
+      "Effects": [
+        {
+          "Effect": "ars_elemental:mana_shield",
+          "Amplifier": 0
+        }
+      ],
+      "Attributes": {
+        "ars_nouveau:ars_nouveau.perk.max_mana": {
+          "value": 180,
+          "modifier": "addition"
+        },
+        "irons_spellbooks:max_mana": {
+          "value": 225,
+          "modifier": "addition"
+        },
+        "ars_nouveau:ars_nouveau.perk.mana_regen": {
+          "value": 6,
+          "modifier": "addition"
+        },
+        "irons_spellbooks:mana_regen": {
+          "value": 0.9375,
+          "modifier": "multiply_base"
+        },
+        "minecraft:generic.armor": {
+          "value": 3.75,
+          "modifier": "addition"
+        }
+      }
+    },
+    "4Part": {
+      "Effects": [
+        {
+          "Effect": "ars_elemental:mana_shield",
+          "Amplifier": 0
+        }
+      ],
+      "Attributes": {
+        "ars_nouveau:ars_nouveau.perk.wixie": {
+          "value": 1,
+          "modifier": "addition"
+        },
+        "ars_nouveau:ars_nouveau.perk.max_mana": {
+          "value": 240,
+          "modifier": "addition"
+        },
+        "irons_spellbooks:max_mana": {
+          "value": 300,
+          "modifier": "addition"
+        },
+        "ars_nouveau:ars_nouveau.perk.mana_regen": {
+          "value": 8,
+          "modifier": "addition"
+        },
+        "irons_spellbooks:mana_regen": {
+          "value": 1.25,
+          "modifier": "multiply_base"
+        },
+        "minecraft:generic.armor": {
+          "value": 5,
+          "modifier": "addition"
+        }
+      }
+    }
+  }
+}

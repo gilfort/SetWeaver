@@ -1,0 +1,13 @@
+{
+  "replace": false,
+  "values": [
+    "zauberei:magiccloth_helmet",
+    "zauberei:magiccloth_chestplate",
+    "zauberei:magiccloth_leggings",
+    "zauberei:magiccloth_boots",
+    "zauberei:magiccloth_helmet_alt",
+    "zauberei:magiccloth_chestplate_alt",
+    "zauberei:magiccloth_leggings_alt",
+    "zauberei:magiccloth_boots_alt"
+  ]
+}

@@ -1,0 +1,23 @@
+#
+#
+#Items, the player can get when using the Introduction Letter
+letter_items = ["zauberei:magiccloth_helmet", "zauberei:magiccloth_chestplate", "zauberei:magiccloth_leggings", "zauberei:magiccloth_boots"]
+#
+#
+#Text shown in the introduction letter item. Use %player% as a placeholder for the player name.
+letter_text = """
+Dear %player%,
+
+Congratulations!
+Our detection system - "Agnosce" - has recognized your magical talent.
+We are pleased to inform you that you have been accepted into our school as a scholarship student.
+From today on you are part of the Witchwood Academy.
+
+To receive your first-year supplies, please tear this letter apart.
+Welcome to a world where magic comes to life.
+We look forward to guiding you on your journey and helping you master your new skills.
+
+Yours sincerely,
+Professor McDumblesnape
+Headmaster of Witchwood Academy
+"""
