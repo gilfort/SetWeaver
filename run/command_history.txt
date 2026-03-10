@@ -1,7 +1,3 @@
-/data get entity @s SelectedItem.id
-/zauberei debug sets
-/zauberei debug tag
-/zauberei debug tag magiccloth_armor
 /zauberei setyear 2
 /zauberei setyear 1
 /zauberei setyear 2
@@ -48,3 +44,7 @@
 /data get entity Dev armor_value
 /data get entity Dev
 /zauberei sets
+/setweaver sets
+/setweaver setmajor 1_naturalist
+/setweaver setyear 3
+/setweaver sets
