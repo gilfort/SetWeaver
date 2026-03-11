@@ -72,7 +72,7 @@ public class SetsManagerScreen extends Screen {
 
     // Icon/Scope-Farben — bleiben bunt
     private static final int COLOR_SPECIFIC  = 0xFF55FF55; // Grün       ●
-    private static final int COLOR_ALL_role = 0xFF5555FF; // Blau       ●
+    private static final int COLOR_ALL_ROLE = 0xFF5555FF; // Blau       ●
     private static final int COLOR_UNIVERSAL = 0xFFFFFF55; // Gelb       ●
     private static final int COLOR_EFFECT    = 0xFF7733AA; // Lila       (Effekte)
     private static final int COLOR_ATTRIBUTE = 0xFF338833; // Grün       (Attribute)
@@ -105,15 +105,15 @@ public class SetsManagerScreen extends Screen {
      * Can be either a TAG header (grouping) or a SCOPE entry (clickable).
      */
     private record ListEntry(EntryType type, String tag, String scopeLabel,
-                             String role, int Level, ArmorSetData data) {
+                             String role, int level, ArmorSetData data) {
         enum EntryType { TAG_HEADER, SCOPE_ENTRY }
 
         int getColor() {
             if (type == EntryType.TAG_HEADER) return COLOR_HEADER;
-            boolean wildrole = ArmorSetDataRegistry.WILDCARD_ROLE.equals(role);
-            boolean wildLevel = Level == ArmorSetDataRegistry.WILDCARD_LEVEL;
-            if (wildrole && wildLevel) return COLOR_UNIVERSAL;
-            if (wildrole) return COLOR_ALL_role;
+            boolean wildRole = ArmorSetDataRegistry.WILDCARD_ROLE.equals(role);
+            boolean wildLevel = level == ArmorSetDataRegistry.WILDCARD_LEVEL;
+            if (wildRole && wildLevel) return COLOR_UNIVERSAL;
+            if (wildRole) return COLOR_ALL_ROLE;
             return COLOR_SPECIFIC;
         }
 
@@ -934,7 +934,7 @@ public class SetsManagerScreen extends Screen {
 
         // SetEditorData aus bestehendem Set aufbauen (inkl. role/Level für korrekten Speicherpfad)
         SetEditorData editorData = new SetEditorData();
-        editorData.loadFrom(entry.tag(), entry.role(), entry.Level(), entry.data());
+        editorData.loadFrom(entry.tag(), entry.role(), entry.level(), entry.data());
 
         // Wizard-Konstruktor nutzen → editorData bleibt erhalten → Unterordner stimmen beim Speichern
         this.minecraft.setScreen(new SetEditorScreen(this, editorData));
