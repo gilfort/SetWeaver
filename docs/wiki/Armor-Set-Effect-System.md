@@ -1,6 +1,6 @@
 # Armor Set Effect System
 
-The Zauberei mod provides a **fully data-driven armor set effect system** that allows modpack developers to define custom set bonuses for any combination of armor items, including items from other mods. The system is based on **item tags** and **JSON configuration files**, requiring **zero Java code** from modpack developers.
+The SetWeaver mod provides a **fully data-driven armor set effect system** that allows modpack developers to define custom set bonuses for any combination of armor items, including items from other mods. The system is based on **item tags** and **JSON configuration files**, requiring **zero Java code** from modpack developers.
 
 ---
 
@@ -27,17 +27,17 @@ The armor set effect system works as follows:
 2. Each JSON file defines **what bonuses** a player gets when wearing a certain number of armor pieces that match a specific **item tag**.
 3. Every few ticks, the mod checks what the player is wearing and applies the matching effects and attributes.
 
-This means you can create set bonuses for **any armor** -- vanilla, Zauberei, or from any other mod -- as long as you can tag the items.
+This means you can create set bonuses for **any armor** -- vanilla, SetWeaver, or from any other mod -- as long as you can tag the items.
 
 ---
 
 ## Core Concepts
 
-### Major and Year
+### role and Level
 
-The Zauberei mod features a progression system where each player has a **Major** (a specialization or school, e.g. `naturalist`, `alchemist`) and a **Year** (a progression level, e.g. `1`, `2`, `3`). Set bonuses are scoped to a specific major and year, meaning:
+The SetWeaver mod features a progression system where each player has a **role** (a specialization or school, e.g. `naturalist`, `alchemist`) and a **Level** (a progression level, e.g. `1`, `2`, `3`). Set bonuses are scoped to a specific role and Level, meaning:
 
-- A player with Major `naturalist` and Year `3` will only receive bonuses defined under the `naturalist/3/` folder.
+- A player with role `naturalist` and Level `3` will only receive bonuses defined under the `naturalist/3/` folder.
 - This allows you to create **progression-based set bonuses** that unlock as players advance.
 
 ### Item Tags
@@ -48,7 +48,7 @@ The system identifies armor sets using **Minecraft item tags** (not armor materi
 - You can create **multiple overlapping sets** (an item can be in multiple tags).
 - Tags are standard Minecraft/NeoForge data and can be created via datapacks.
 
-A tag like `zauberei:magiccloth_armor` groups all items that belong to the Magic Cloth Armor set.
+A tag like `setweaver:magiccloth_armor` groups all items that belong to the Magic Cloth Armor set.
 
 ### Part Thresholds
 
@@ -71,10 +71,10 @@ All set definitions are placed in the game config directory:
 
 ```
 config/
-  zauberei/
+  setweaver/
     set_armor/
-      {major}/
-        {year}/
+      {role}/
+        {Level}/
           {namespace}__{tagpath}.json
 ```
 
@@ -87,7 +87,7 @@ The JSON filename encodes the **item tag** it references:
 
 | Item Tag | Filename |
 |----------|----------|
-| `zauberei:magiccloth_armor` | `zauberei__magiccloth_armor.json` |
+| `setweaver:magiccloth_armor` | `setweaver__magiccloth_armor.json` |
 | `arsnouveau:tier2armor` | `arsnouveau__tier2armor.json` |
 | `minecraft:leather_armor` | `minecraft__leather_armor.json` |
 | `mymod:custom_set` | `mymod__custom_set.json` |
@@ -172,7 +172,7 @@ Attribute modifiers change player stats (e.g. max health, movement speed, attack
 
 Decide:
 - Which armor pieces should form a set?
-- What major and year should this set be available for?
+- What role and Level should this set be available for?
 - What bonuses should each threshold grant?
 
 ### Step 2: Create or Use an Item Tag
@@ -208,16 +208,16 @@ This creates the tag `mypack:fire_warrior_armor`.
 Navigate to your Minecraft instance's `config/` folder and create:
 
 ```
-config/zauberei/set_armor/{major}/{year}/
+config/setweaver/set_armor/{role}/{Level}/
 ```
 
-For example, for the `naturalist` major at year `3`:
+For example, for the `naturalist` role at Level `3`:
 
 ```
-config/zauberei/set_armor/naturalist/3/
+config/setweaver/set_armor/naturalist/3/
 ```
 
-> **Tip:** The `config/zauberei/set_armor/` base directory is automatically created by the mod on first launch if it does not exist.
+> **Tip:** The `config/setweaver/set_armor/` base directory is automatically created by the mod on first launch if it does not exist.
 
 ### Step 4: Write the JSON File
 
@@ -227,7 +227,7 @@ For the tag `mypack:fire_warrior_armor` the filename is: `mypack__fire_warrior_a
 
 Full path:
 ```
-config/zauberei/set_armor/naturalist/3/mypack__fire_warrior_armor.json
+config/setweaver/set_armor/naturalist/3/mypack__fire_warrior_armor.json
 ```
 
 Write your set definition:
@@ -271,13 +271,13 @@ The set definitions are loaded at server startup. After creating or modifying JS
 
 Check the server log for confirmation messages:
 ```
-[Zauberei] Loaded set definition: major=naturalist, year=3, tag=mypack:fire_warrior_armor
+[SetWeaver] Loaded set definition: role=naturalist, Level=3, tag=mypack:fire_warrior_armor
 ```
 
 Or error messages if something went wrong:
 ```
-[Zauberei] Unknown effect 'minecraft:invalid_effect' in ... -- skipped
-[Zauberei] Unknown attribute 'minecraft:invalid.attribute' in ... -- removed
+[SetWeaver] Unknown effect 'minecraft:invalid_effect' in ... -- skipped
+[SetWeaver] Unknown attribute 'minecraft:invalid.attribute' in ... -- removed
 ```
 
 ---
@@ -288,7 +288,7 @@ Or error messages if something went wrong:
 
 A basic set that grants Speed I with 2 pieces and Speed II + Jump Boost I with all 4 pieces.
 
-**File:** `config/zauberei/set_armor/naturalist/1/zauberei__apprentice_robes.json`
+**File:** `config/setweaver/set_armor/naturalist/1/setweaver__apprentice_robes.json`
 
 ```json
 {
@@ -321,7 +321,7 @@ A basic set that grants Speed I with 2 pieces and Speed II + Jump Boost I with a
 
 A tank set that grants increasing health and armor toughness.
 
-**File:** `config/zauberei/set_armor/alchemist/2/mymod__heavy_plate.json`
+**File:** `config/setweaver/set_armor/alchemist/2/mymod__heavy_plate.json`
 
 ```json
 {
@@ -400,7 +400,7 @@ Using a custom tag to combine armor from different mods into one set.
   "replace": false,
   "values": [
     "arsnouveau:novice_helmet",
-    "zauberei:magiccloth_chestplate",
+    "setweaver:magiccloth_chestplate",
     "ars_elemental:fire_leggings",
     "minecraft:golden_boots"
   ]
@@ -409,7 +409,7 @@ Using a custom tag to combine armor from different mods into one set.
 
 **Step 2 -- Create the set definition:**
 
-`config/zauberei/set_armor/naturalist/3/mypack__arcane_mix_armor.json`:
+`config/setweaver/set_armor/naturalist/3/mypack__arcane_mix_armor.json`:
 ```json
 {
   "parts": {
@@ -475,12 +475,12 @@ The system validates all effects and attributes at load time and logs warnings o
 
 | Problem | Solution |
 |---------|----------|
-| Set bonus not applying | Check that the player's **major** and **year** match the folder path. |
+| Set bonus not applying | Check that the player's **role** and **Level** match the folder path. |
 | `Invalid filename` error in log | Ensure the filename uses `__` (double underscore) to separate namespace and tag path. |
 | `Unknown effect` error in log | Verify the effect registry name is correct and the mod providing it is loaded. |
 | `Unknown attribute` error in log | Verify the attribute registry name is correct and the mod providing it is loaded. |
 | `No 'parts' found` error | Check your JSON syntax. The root object must contain a `"parts"` key. |
-| `Invalid year folder name` error | The year folder name must be a valid integer (e.g. `1`, `2`, `3`). |
+| `Invalid Level folder name` error | The Level folder name must be a valid integer (e.g. `1`, `2`, `3`). |
 | Effects flickering | This should not happen. Effects are applied with a 10-second duration and refreshed every ~3 seconds. If it occurs, check for conflicting mods. |
 | Bonuses not stacking from multiple sets | Multiple sets **do** stack. Each set modifiers are applied independently. |
 
@@ -490,23 +490,23 @@ The system validates all effects and attributes at load time and logs warnings o
 
 For developers interested in how the system works internally:
 
-1. **ZaubereiReloadListener** walks the `config/zauberei/set_armor/` directory tree at startup, parses each JSON file using Gson into `ArmorSetData` objects, validates all effects and attributes against the game registries, and stores them in `ArmorSetDataRegistry`.
+1. **SetWeaverReloadListener** walks the `config/setweaver/set_armor/` directory tree at startup, parses each JSON file using Gson into `ArmorSetData` objects, validates all effects and attributes against the game registries, and stores them in `ArmorSetDataRegistry`.
 
-2. **ArmorSetDataRegistry** is an in-memory map keyed by `major:year:namespace:tagpath`. It provides lookup methods to find all registered tags for a given major/year combination.
+2. **ArmorSetDataRegistry** is an in-memory map keyed by `role:Level:namespace:tagpath`. It provides lookup methods to find all registered tags for a given role/Level combination.
 
-3. **ArmorEffects** hooks into the `PlayerTickEvent.Post` event and runs every 60 ticks (~3 seconds). It reads the player's current major and year, checks which registered item tags match the player's worn armor, and applies the corresponding effects and attribute modifiers.
+3. **ArmorEffects** hooks into the `PlayerTickEvent.Post` event and runs every 60 ticks (~3 seconds). It reads the player's current role and Level, checks which registered item tags match the player's worn armor, and applies the corresponding effects and attribute modifiers.
 
-4. **Attribute modifiers** are applied as **transient modifiers** (not saved to NBT) with a ResourceLocation in the `zauberei` namespace. Old modifiers are removed before new ones are applied to prevent stacking issues.
+4. **Attribute modifiers** are applied as **transient modifiers** (not saved to NBT) with a ResourceLocation in the `setweaver` namespace. Old modifiers are removed before new ones are applied to prevent stacking issues.
 
-5. **Player data** (major, year) is stored via NeoForge's AttachedData system using CompoundTag on the ServerPlayer.
+5. **Player data** (role, Level) is stored via NeoForge's AttachedData system using CompoundTag on the ServerPlayer.
 
 ### Architecture Diagram
 
 ```
-config/zauberei/set_armor/
+config/setweaver/set_armor/
         |
         v
-ZaubereiReloadListener  --->  ArmorSetDataRegistry (in-memory map)
+SetWeaverReloadListener  --->  ArmorSetDataRegistry (in-memory map)
    (reads JSON at startup)          |
                                     v
                              ArmorEffects (PlayerTickEvent.Post)
@@ -521,10 +521,10 @@ ZaubereiReloadListener  --->  ArmorSetDataRegistry (in-memory map)
 
 - `ArmorSetData.java` -- Data model for JSON deserialization
 - `ArmorSetDataRegistry.java` -- In-memory registry for loaded set definitions
-- `ZaubereiReloadListener.java` -- JSON file loader and validator
+- `SetWeaverReloadListener.java` -- JSON file loader and validator
 - `ArmorEffects.java` -- Tick-based effect and attribute application logic
-- `PlayerDataHelper.java` -- Helper for reading player major and year
+- `PlayerDataHelper.java` -- Helper for reading player role and Level
 
 ---
 
-*This documentation applies to the Zauberei mod for Minecraft 1.21.1 with NeoForge.*
+*This documentation applies to the SetWeaver mod for Minecraft 1.21.1 with NeoForge.*

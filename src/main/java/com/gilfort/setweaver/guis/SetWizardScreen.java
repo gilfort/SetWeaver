@@ -22,8 +22,8 @@ import java.util.stream.Collectors;
  * <ul>
  *   <li><b>Tag</b> — which item tag this set applies to (searchable popup)</li>
  *   <li><b>Display Name</b> — optional human-readable name for tooltips</li>
- *   <li><b>Major</b> — school/class scope (* = all, or specific major)</li>
- *   <li><b>Year</b> — year scope (* = all, or 1–99)</li>
+ *   <li><b>role</b> — school/class scope (* = all, or specific role)</li>
+ *   <li><b>Level</b> — Level scope (* = all, or 1–99)</li>
  * </ul>
  *
  * <p>On "Next →", performs an existence check against
@@ -62,14 +62,14 @@ public class SetWizardScreen extends Screen {
 
     // ──── Selected values ───────────────────────────────────────────────
     private String selectedTag   = null;   // e.g. "zauberei:magiccloth_armor"
-    private String selectedMajor = ArmorSetDataRegistry.WILDCARD_MAJOR; // "*"
-    private int    selectedYear  = ArmorSetDataRegistry.WILDCARD_YEAR;  // -1
+    private String selectedrole = ArmorSetDataRegistry.WILDCARD_ROLE; // "*"
+    private int    selectedLevel  = ArmorSetDataRegistry.WILDCARD_LEVEL;  // -1
 
     // ──── Widgets ───────────────────────────────────────────────────────
     private Button tagButton;
     private EditBox displayNameBox;
-    private Button majorButton;
-    private Button yearButton;
+    private Button roleButton;
+    private Button LevelButton;
     private Button nextButton;
 
     // ──── Panel position (computed in init) ────────────────────────────
@@ -115,8 +115,8 @@ public class SetWizardScreen extends Screen {
         int titleH = 16;
         int row1Y = panelY + PADDING + titleH + 6;   // Tag
         int row2Y = row1Y + ROW_HEIGHT;                // Display Name
-        int row3Y = row2Y + ROW_HEIGHT;                // Major
-        int row4Y = row3Y + ROW_HEIGHT;                // Year
+        int row3Y = row2Y + ROW_HEIGHT;                // role
+        int row4Y = row3Y + ROW_HEIGHT;                // Level
 
         // ---- Row 1: Tag selector button ----
         tagButton = Button.builder(
@@ -135,21 +135,21 @@ public class SetWizardScreen extends Screen {
                 Component.literal("Optional (e.g. Magic Robes)").withStyle(ChatFormatting.GRAY));
         addRenderableWidget(displayNameBox);
 
-        // ---- Row 3: Major selector button ----
-        majorButton = Button.builder(
-                        Component.literal(formatMajorLabel(selectedMajor)),
-                        btn -> onSelectMajor())
+        // ---- Row 3: role selector button ----
+        roleButton = Button.builder(
+                        Component.literal(formatroleLabel(selectedrole)),
+                        btn -> onSelectrole())
                 .bounds(fieldX, row3Y, fieldW, FIELD_HEIGHT)
                 .build();
-        addRenderableWidget(majorButton);
+        addRenderableWidget(roleButton);
 
-        // ---- Row 4: Year selector button ----
-        yearButton = Button.builder(
-                        Component.literal(formatYearLabel(selectedYear)),
-                        btn -> onSelectYear())
+        // ---- Row 4: Level selector button ----
+        LevelButton = Button.builder(
+                        Component.literal(formatLevelLabel(selectedLevel)),
+                        btn -> onSelectLevel())
                 .bounds(fieldX, row4Y, fieldW, FIELD_HEIGHT)
                 .build();
-        addRenderableWidget(yearButton);
+        addRenderableWidget(LevelButton);
 
         // ---- Bottom buttons: Back / Next ----
         int btnW = 80;
@@ -201,8 +201,8 @@ public class SetWizardScreen extends Screen {
         // Row labels
         graphics.drawString(this.font, "Tag:",          contentX, row1Y + 6, COLOR_TEXT, false);
         graphics.drawString(this.font, "Display Name:", contentX, row2Y + 6, COLOR_TEXT, false);
-        graphics.drawString(this.font, "Major:",        contentX, row3Y + 6, COLOR_TEXT, false);
-        graphics.drawString(this.font, "Year:",         contentX, row4Y + 6, COLOR_TEXT, false);
+        graphics.drawString(this.font, "role:",        contentX, row3Y + 6, COLOR_TEXT, false);
+        graphics.drawString(this.font, "Level:",         contentX, row4Y + 6, COLOR_TEXT, false);
 
         // Status message area
         if (statusMessage != null) {
@@ -255,19 +255,19 @@ public class SetWizardScreen extends Screen {
     }
 
     /**
-     * Opens a SearchableListPopup with "* (All Majors)" + all known majors.
+     * Opens a SearchableListPopup with "* (All roles)" + all known roles.
      */
-    private void onSelectMajor() {
+    private void onSelectrole() {
         List<SearchableListPopup.Entry<String>> entries = new ArrayList<>();
 
         // First entry: wildcard
         entries.add(new SearchableListPopup.Entry<>(
-                ArmorSetDataRegistry.WILDCARD_MAJOR,
-                Component.literal("★ All Majors (*)"),
-                "all majors * wildcard"));
+                ArmorSetDataRegistry.WILDCARD_ROLE,
+                Component.literal("★ All roles (*)"),
+                "all roles * wildcard"));
 
-        // All registered majors, sorted alphabetically
-        ArmorSetDataRegistry.getMajors().stream()
+        // All registered roles, sorted alphabetically
+        ArmorSetDataRegistry.getRoles().stream()
                 .sorted()
                 .forEach(m -> entries.add(new SearchableListPopup.Entry<>(
                         m,
@@ -275,11 +275,11 @@ public class SetWizardScreen extends Screen {
                         m)));
 
         this.minecraft.setScreen(new SearchableListPopup<>(
-                Component.literal("Select Major"),
+                Component.literal("Select role"),
                 this, entries,
                 selected -> {
-                    selectedMajor = selected;
-                    majorButton.setMessage(Component.literal(formatMajorLabel(selected)));
+                    selectedrole = selected;
+                    roleButton.setMessage(Component.literal(formatroleLabel(selected)));
                     clearStatus();
                 },
                 true
@@ -288,20 +288,20 @@ public class SetWizardScreen extends Screen {
     }
 
     /**
-     * Opens a SearchableListPopup with "* (All Years)" + years 1–99.
+     * Opens a SearchableListPopup with "* (All Levels)" + Levels 1–99.
      */
-    private void onSelectYear() {
+    private void onSelectLevel() {
         List<SearchableListPopup.Entry<Integer>> entries = new ArrayList<>();
 
         // First entry: wildcard
         entries.add(new SearchableListPopup.Entry<>(
-                ArmorSetDataRegistry.WILDCARD_YEAR,
-                Component.literal("★ All Years (*)"),
-                "all years * wildcard"));
+                ArmorSetDataRegistry.WILDCARD_LEVEL,
+                Component.literal("★ All Levels (*)"),
+                "all Levels * wildcard"));
 
-        // Years 1–99
+        // Levels 1–99
         for (int y = 1; y <= 99; y++) {
-            String label = "Year " + y;
+            String label = "Level " + y;
             entries.add(new SearchableListPopup.Entry<>(
                     y,
                     Component.literal(label),
@@ -309,11 +309,11 @@ public class SetWizardScreen extends Screen {
         }
 
         this.minecraft.setScreen(new SearchableListPopup<>(
-                Component.literal("Select Year"),
+                Component.literal("Select Level"),
                 this, entries,
                 selected -> {
-                    selectedYear = selected;
-                    yearButton.setMessage(Component.literal(formatYearLabel(selected)));
+                    selectedLevel = selected;
+                    LevelButton.setMessage(Component.literal(formatLevelLabel(selected)));
                     clearStatus();
                 }
         ));
@@ -334,11 +334,11 @@ public class SetWizardScreen extends Screen {
             return;
         }
 
-        // Major/Year rule: if major is specific, year must also be specific
-        boolean wildMajor = ArmorSetDataRegistry.WILDCARD_MAJOR.equals(selectedMajor);
-        boolean wildYear  = (selectedYear == ArmorSetDataRegistry.WILDCARD_YEAR);
-        if (!wildMajor && wildYear) {
-            setStatus("If a Major is selected, Year must also be specified.", COLOR_ERROR);
+        // role/Level rule: if role is specific, Level must also be specific
+        boolean wildrole = ArmorSetDataRegistry.WILDCARD_ROLE.equals(selectedrole);
+        boolean wildLevel  = (selectedLevel == ArmorSetDataRegistry.WILDCARD_LEVEL);
+        if (!wildrole && wildLevel) {
+            setStatus("If a role is selected, Level must also be specified.", COLOR_ERROR);
             return;
         }
 
@@ -346,15 +346,15 @@ public class SetWizardScreen extends Screen {
         SetEditorData editorData = new SetEditorData();
         editorData.setTag(selectedTag);
         editorData.setDisplayName(displayNameBox.getValue().trim());
-        editorData.setMajor(selectedMajor);
-        editorData.setYear(selectedYear);
+        editorData.setrole(selectedrole);
+        editorData.setLevel(selectedLevel);
 
         // ---- 3. Existence check (exact match only) ----
-        ArmorSetData existing = findExactMatch(selectedTag, selectedMajor, selectedYear);
+        ArmorSetData existing = findExactMatch(selectedTag, selectedrole, selectedLevel);
 
         if (existing != null) {
             // Load existing data into editor
-            editorData.loadFrom(selectedTag, selectedMajor, selectedYear, existing);
+            editorData.loadFrom(selectedTag, selectedrole, selectedLevel, existing);
             setStatus("Set already exists — loading for editing.", COLOR_INFO);
         }
 
@@ -391,11 +391,11 @@ public class SetWizardScreen extends Screen {
      *
      * @return the existing ArmorSetData, or null if no exact match
      */
-    private static ArmorSetData findExactMatch(String tag, String major, int year) {
+    private static ArmorSetData findExactMatch(String tag, String role, int Level) {
         for (ArmorSetDataRegistry.SetEntry entry : ArmorSetDataRegistry.getAllEntries()) {
             if (entry.tag().equals(tag)
-                    && entry.major().equals(major)
-                    && entry.year() == year) {
+                    && entry.role().equals(role)
+                    && entry.level() == Level) {
                 return entry.data();
             }
         }
@@ -419,23 +419,23 @@ public class SetWizardScreen extends Screen {
     // ══════════════════════════════════════════════════════════════════
 
     /**
-     * Formats the major value for display on the button.
+     * Formats the role value for display on the button.
      */
-    private static String formatMajorLabel(String major) {
-        if (ArmorSetDataRegistry.WILDCARD_MAJOR.equals(major)) {
-            return "★ All Majors (*)";
+    private static String formatroleLabel(String role) {
+        if (ArmorSetDataRegistry.WILDCARD_ROLE.equals(role)) {
+            return "★ All roles (*)";
         }
-        return capitalizeFirst(major);
+        return capitalizeFirst(role);
     }
 
     /**
-     * Formats the year value for display on the button.
+     * Formats the Level value for display on the button.
      */
-    private static String formatYearLabel(int year) {
-        if (year == ArmorSetDataRegistry.WILDCARD_YEAR) {
-            return "★ All Years (*)";
+    private static String formatLevelLabel(int Level) {
+        if (Level == ArmorSetDataRegistry.WILDCARD_LEVEL) {
+            return "★ All Levels (*)";
         }
-        return "Year " + year;
+        return "Level " + Level;
     }
 
     /**

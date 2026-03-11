@@ -30,16 +30,16 @@ public class SetEditorData {
     private String displayName = "";
 
     /**
-     * The major (school/class) this set applies to.
-     * Use {@code "*"} for all majors.
+     * The role (school/class) this set applies to.
+     * Use {@code "*"} for all roles.
      */
-    private String major = ArmorSetDataRegistry.WILDCARD_MAJOR;
+    private String role = ArmorSetDataRegistry.WILDCARD_ROLE;
 
     /**
-     * The year this set applies to.
-     * Use {@code -1} ({@link ArmorSetDataRegistry#WILDCARD_YEAR}) for all years.
+     * The Level this set applies to.
+     * Use {@code -1} ({@link ArmorSetDataRegistry#WILDCARD_LEVEL}) for all Levels.
      */
-    private int year = ArmorSetDataRegistry.WILDCARD_YEAR;
+    private int Level = ArmorSetDataRegistry.WILDCARD_LEVEL;
 
     /** Whether this set already exists in the registry (edit mode). */
     private boolean existingSet = false;
@@ -234,11 +234,11 @@ public class SetEditorData {
     public String getDisplayName() { return displayName; }
     public void setDisplayName(String displayName) { this.displayName = displayName; }
 
-    public String getMajor() { return major; }
-    public void setMajor(String major) { this.major = major; }
+    public String getrole() { return role; }
+    public void setrole(String role) { this.role = role; }
 
-    public int getYear() { return year; }
-    public void setYear(int year) { this.year = year; }
+    public int getLevel() { return Level; }
+    public void setLevel(int Level) { this.Level = Level; }
 
     public boolean isExistingSet() { return existingSet; }
     public void setExistingSet(boolean existingSet) { this.existingSet = existingSet; }
@@ -295,15 +295,15 @@ public class SetEditorData {
      * Used when editing a set that already exists in the registry.
      *
      * @param tag   the item tag string (e.g. "zauberei:magiccloth_armor")
-     * @param major the major (or "*" for wildcard)
-     * @param year  the year (or -1 for wildcard)
+     * @param role the role (or "*" for wildcard)
+     * @param Level  the Level (or -1 for wildcard)
      * @param data  the existing set data to load into the editor
      * @return this instance for chaining
      */
-    public SetEditorData loadFrom(String tag, String major, int year, ArmorSetData data) {
+    public SetEditorData loadFrom(String tag, String role, int Level, ArmorSetData data) {
         this.tag = tag;
-        this.major = major;
-        this.year = year;
+        this.role = role;
+        this.Level = Level;
         this.existingSet = true;
         this.displayName = data.getDisplayName() != null ? data.getDisplayName() : "";
 
@@ -423,13 +423,13 @@ public class SetEditorData {
 
     /**
      * Computes the relative file path where this set should be saved.
-     * Based on the major/year scope and tag.
+     * Based on the role/Level scope and tag.
      *
      * <p>Examples:</p>
      * <ul>
-     *   <li>Major=*, Year=* → {@code all_majors_all_years/zauberei__magiccloth_armor.json}</li>
-     *   <li>Major=*, Year=3 → {@code all_majors/3/zauberei__magiccloth_armor.json}</li>
-     *   <li>Major=naturalist, Year=3 → {@code naturalist/3/zauberei__magiccloth_armor.json}</li>
+     *   <li>role=*, Level=* → {@code all_roles_all_Levels/zauberei__magiccloth_armor.json}</li>
+     *   <li>role=*, Level=3 → {@code all_roles/3/zauberei__magiccloth_armor.json}</li>
+     *   <li>role=naturalist, Level=3 → {@code naturalist/3/zauberei__magiccloth_armor.json}</li>
      * </ul>
      *
      * @return the relative path from the set_armor config directory
@@ -438,15 +438,15 @@ public class SetEditorData {
         // Convert tag "zauberei:magiccloth_armor" → filename "zauberei__magiccloth_armor.json"
         String fileName = tag.replace(":", "__") + ".json";
 
-        boolean wildMajor = ArmorSetDataRegistry.WILDCARD_MAJOR.equals(major);
-        boolean wildYear = (year == ArmorSetDataRegistry.WILDCARD_YEAR);
+        boolean wildrole = ArmorSetDataRegistry.WILDCARD_ROLE.equals(role);
+        boolean wildLevel = (Level == ArmorSetDataRegistry.WILDCARD_LEVEL);
 
-        if (wildMajor && wildYear) {
-            return "all_majors_all_years" + "/" + fileName;
-        } else if (wildMajor) {
-            return "all_majors" + "/" + year + "/" + fileName;
+        if (wildrole && wildLevel) {
+            return "all_roles_all_Levels" + "/" + fileName;
+        } else if (wildrole) {
+            return "all_roles" + "/" + Level + "/" + fileName;
         } else {
-            return major + "/" + year + "/" + fileName;
+            return role + "/" + Level + "/" + fileName;
         }
     }
 
@@ -470,11 +470,11 @@ public class SetEditorData {
             errors.add("Tag must include namespace (e.g. 'zauberei:my_armor').");
         }
 
-        // Major/Year rule: if major is specific, year must also be specific
-        boolean wildMajor = ArmorSetDataRegistry.WILDCARD_MAJOR.equals(major);
-        boolean wildYear = (year == ArmorSetDataRegistry.WILDCARD_YEAR);
-        if (!wildMajor && wildYear) {
-            errors.add("If a Major is selected, Year must also be specified.");
+        // role/Level rule: if role is specific, Level must also be specific
+        boolean wildrole = ArmorSetDataRegistry.WILDCARD_ROLE.equals(role);
+        boolean wildLevel = (Level == ArmorSetDataRegistry.WILDCARD_LEVEL);
+        if (!wildrole && wildLevel) {
+            errors.add("If a role is selected, Level must also be specified.");
         }
 
         // Step 2 validations

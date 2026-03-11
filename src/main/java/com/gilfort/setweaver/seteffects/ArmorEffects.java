@@ -24,8 +24,8 @@ import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 
 import java.util.*;
 
-import static com.gilfort.setweaver.component.ComponentRegistry.MAJOR;
-import static com.gilfort.setweaver.component.ComponentRegistry.YEAR;
+import static com.gilfort.setweaver.component.ComponentRegistry.ROLE;
+import static com.gilfort.setweaver.component.ComponentRegistry.LEVEL;
 
 public class ArmorEffects {
 
@@ -46,16 +46,16 @@ public class ArmorEffects {
 
             tickcounter = 0;
 
-            String major = PlayerDataHelper.getMajor(player);
-            int year = PlayerDataHelper.getYear(player);
+            String role = PlayerDataHelper.getRole(player);
+            int level = PlayerDataHelper.getLevel(player);
 
-            applySetBasedEffects(player, major, year);
+            applySetBasedEffects(player, role, level);
 
             // keep components updated on armor stacks (used by tooltip)
             for (ItemStack stack : player.getArmorSlots()) {
                 if (stack.getItem() instanceof ArmorItem) {
-                    stack.set(MAJOR.value(), major);
-                    stack.set(YEAR.value(), year);
+                    stack.set(ROLE.value(), role);
+                    stack.set(LEVEL.value(), level);
                 }
             }
         }
@@ -63,12 +63,12 @@ public class ArmorEffects {
 
     /**
      * Tag-only set logic:
-     * - Read registered tags for (major, year)
+     * - Read registered tags for (role, level)
      * - Count how many worn armor pieces match each tag
      * - Remove old Zauberei modifiers ONCE
      * - Apply effects + attributes for each matching set
      */
-    private static void applySetBasedEffects(Player player, String major, int year) {
+    private static void applySetBasedEffects(Player player, String role, int level) {
         // Early skip: no armor worn at all
         boolean anyArmor = false;
         for (ItemStack stack : player.getArmorSlots()) {
@@ -78,13 +78,13 @@ public class ArmorEffects {
             }
         }
         if (!anyArmor) {
-            removeOldZaubereiModifiers(player);
+            removeOldSetModifiers(player);
             return;
         }
 
-        Set<String> registeredTags = ArmorSetDataRegistry.getRegisteredTags(major.toLowerCase(), year);
+        Set<String> registeredTags = ArmorSetDataRegistry.getRegisteredTags(role.toLowerCase(), level);
         if (registeredTags.isEmpty()) {
-            removeOldZaubereiModifiers(player);
+            removeOldSetModifiers(player);
             return;
         }
 
@@ -115,18 +115,18 @@ public class ArmorEffects {
         }
 
         if (tagCounts.isEmpty()) {
-            removeOldZaubereiModifiers(player);
+            removeOldSetModifiers(player);
             return;
         }
 
         // Remove old modifiers ONCE, then apply all sets (stacking allowed)
-        removeOldZaubereiModifiers(player);
+        removeOldSetModifiers(player);
 
         for (Map.Entry<String, Integer> entry : tagCounts.entrySet()) {
             String tagString = entry.getKey();
             int count = entry.getValue();
 
-            ArmorSetData data = ArmorSetDataRegistry.getData(major.toLowerCase(), year, tagString);
+            ArmorSetData data = ArmorSetDataRegistry.getData(role.toLowerCase(), level, tagString);
             if (data == null || data.getParts() == null) {
                 continue;
             }
@@ -201,7 +201,7 @@ public class ArmorEffects {
         }
     }
 
-    private static void removeOldZaubereiModifiers(Player player) {
+    private static void removeOldSetModifiers(Player player) {
         for (Attribute attribute : BuiltInRegistries.ATTRIBUTE) {
             Optional<ResourceKey<Attribute>> optionalKey = BuiltInRegistries.ATTRIBUTE.getResourceKey(attribute);
             if (optionalKey.isEmpty()) {

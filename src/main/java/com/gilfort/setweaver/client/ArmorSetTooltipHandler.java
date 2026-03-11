@@ -40,8 +40,7 @@ import java.util.Set;
  * hold SHIFT and scroll the mouse wheel to browse through all matching sets.
  * If only one set matches, behavior is identical to the non-paginated version.
  *
- * @see ArmorEffects — writes MAJOR/YEAR DataComponents to all worn ArmorItems
- * @see ArmorSetDataRegistry — provides set definitions per major/year/tag
+ * @see ArmorSetDataRegistry — provides set definitions per role/Level/tag
  * @see <a href="https://github.com/gilfort/Zauberei-1.21.1/issues/17">Issue #17</a>
  */
 @OnlyIn(Dist.CLIENT)
@@ -147,40 +146,40 @@ public static void onMouseScroll(ScreenEvent.MouseScrolled.Pre event) {
             return;
         }
 
-        // --- Determine Major and Year ---
+        // --- Determine role and Level ---
         Player player = Minecraft.getInstance().player;
         if (player == null) return;
 
-        var majorType = ComponentRegistry.MAJOR.value();
-        var yearType = ComponentRegistry.YEAR.value();
+        var roleType = ComponentRegistry.ROLE.value();
+        var LevelType = ComponentRegistry.LEVEL.value();
 
-        String major = stack.has(majorType) ? stack.get(majorType) : null;
-        Integer yearObj = stack.has(yearType) ? stack.get(yearType) : null;
+        String role = stack.has(roleType) ? stack.get(roleType) : null;
+        Integer LevelObj = stack.has(LevelType) ? stack.get(LevelType) : null;
 
         // Fallback: read from currently worn armor stacks
-        if (major == null || yearObj == null) {
+        if (role == null || LevelObj == null) {
             for (ItemStack worn : player.getArmorSlots()) {
-                if (worn.has(majorType) && worn.has(yearType)) {
-                    major = worn.get(majorType);
-                    yearObj = worn.get(yearType);
+                if (worn.has(roleType) && worn.has(LevelType)) {
+                    role = worn.get(roleType);
+                    LevelObj = worn.get(LevelType);
                     break;
                 }
             }
         }
 
         // Still no data → generic hint
-        if (major == null || yearObj == null) {
+        if (role == null || LevelObj == null) {
             event.getToolTip().add(Component.literal("[Set Bonus available — equip to see details]")
                     .withStyle(ChatFormatting.GRAY));
             return;
         }
 
-        int year = yearObj;
+        int Level = LevelObj;
 
-        // --- Lookup registered tags for this major/year ---
-        Set<String> registeredTags = ArmorSetDataRegistry.getRegisteredTags(major.toLowerCase(), year);
+        // --- Lookup registered tags for this role/Level ---
+        Set<String> registeredTags = ArmorSetDataRegistry.getRegisteredTags(role.toLowerCase(), Level);
         if (registeredTags.isEmpty()) {
-            event.getToolTip().add(Component.literal("[No set bonus for your current Major]")
+            event.getToolTip().add(Component.literal("[No set bonus for your current role]")
                     .withStyle(ChatFormatting.GRAY));
             return;
         }
@@ -216,7 +215,7 @@ public static void onMouseScroll(ScreenEvent.MouseScrolled.Pre event) {
 
         // ── Render the SINGLE selected set ───────────────────────────────
         String selectedTag = matchingTags.get(currentSetPage);
-        renderSetTooltip(event, player, major, year, selectedTag, matchingTags.size());
+        renderSetTooltip(event, player, role, Level, selectedTag, matchingTags.size());
     }
 
     // ─── Single-Set Rendering ────────────────────────────────────────────
@@ -227,13 +226,13 @@ public static void onMouseScroll(ScreenEvent.MouseScrolled.Pre event) {
      *
      * @param event         the tooltip event to append lines to
      * @param player        the local player
-     * @param major         the player's current major (lowercase)
-     * @param year          the player's current year
+     * @param role         the player's current role (lowercase)
+     * @param Level          the player's current Level
      * @param tagString     the tag string of the set to render
      * @param totalSets     total number of matching sets (for the pagination header)
      */
     private static void renderSetTooltip(ItemTooltipEvent event, Player player,
-                                         String major, int year,
+                                         String role, int Level,
                                          String tagString, int totalSets) {
 
         ResourceLocation tagLoc = ResourceLocation.parse(tagString);
@@ -247,7 +246,7 @@ public static void onMouseScroll(ScreenEvent.MouseScrolled.Pre event) {
             }
         }
 
-        ArmorSetData data = ArmorSetDataRegistry.getData(major.toLowerCase(), year, tagString);
+        ArmorSetData data = ArmorSetDataRegistry.getData(role.toLowerCase(), Level, tagString);
         if (data == null || data.getParts() == null) return;
 
         // Determine the maximum part threshold defined in the set

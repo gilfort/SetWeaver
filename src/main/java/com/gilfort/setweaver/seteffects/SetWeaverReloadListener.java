@@ -20,7 +20,7 @@ import java.util.Map;
  * Loads all JSON files from config/zauberei/set_armor/.
  *
  * Folder structure:
- *   config/zauberei/set_armor/{major}/{year}/{namespace}__{tagpath}.json
+ *   config/zauberei/set_armor/{role}/{level}/{namespace}__{tagpath}.json
  *
  * Examples:
  *   config/zauberei/set_armor/naturalist/3/zauberei__magiccloth_armor.json
@@ -46,8 +46,8 @@ public class SetWeaverReloadListener {
         if (firstRun) {
             BASE_DIR.mkdirs();
             // Create wildcard directories
-            new File(BASE_DIR, "all_majors").mkdirs();
-            new File(BASE_DIR, "all_majors_all_years").mkdirs();
+            new File(BASE_DIR, "all_roles").mkdirs();
+            new File(BASE_DIR, "all_roles_all_levels").mkdirs();
             // Create HOW-TO file
             writeHowToFile();
             // Create example file
@@ -73,14 +73,14 @@ public class SetWeaverReloadListener {
             ── FOLDER STRUCTURE ─────────────────────────────────────────────
 
               config/zauberei/set_armor/
-              ├── {major}/{year}/          Standard: applies to specific major + year
-              ├── all_majors/{year}/       Wildcard: applies to ALL majors for a year
-              └── all_majors_all_years/    Universal: applies ALWAYS (no major/year needed)
+              ├── {role}/{level}/          Standard: applies to specific role + level
+              ├── all_roles/{level}/       Wildcard: applies to ALL roles for a level
+              └── all_roles_all_levels/    Universal: applies ALWAYS (no role/level needed)
 
               Priority (highest wins):
-                1. {major}/{year}/         ← most specific
-                2. all_majors/{year}/      ← year-specific wildcard
-                3. all_majors_all_years/   ← universal fallback
+                1. {role}/{level}/         ← most specific
+                2. all_roles/{level}/      ← level-specific wildcard
+                3. all_roles_all_levels/   ← universal fallback
 
               If the SAME tag is defined at multiple levels, the most specific wins.
               There is NO merging between levels.
@@ -164,12 +164,12 @@ public class SetWeaverReloadListener {
             ── INGAME COMMANDS ──────────────────────────────────────────────
 
               /zauberei reload                      Reload all set definitions
-              /zauberei debug sets                  Show all loaded sets for your major/year
+              /zauberei debug sets                  Show all loaded sets for your role/level
               /zauberei debug tag <tag>             Debug a specific tag match
-              /zauberei setmajor <major>            Set your major
-              /zauberei setyear <year>              Set your year
-              /zauberei checkmajor <player>         Check a player's major
-              /zauberei checkyear <player>           Check a player's year
+              /zauberei setrole <role>            Set your role
+              /zauberei setlevel <level>              Set your level
+              /zauberei checkrole <player>         Check a player's role
+              /zauberei checklevel <player>           Check a player's level
               /zauberei sets list                   List all loaded set definitions
               /zauberei sets create <tag>           Generate a template JSON for a tag
               /zauberei sets validate               Check all JSON files for errors
@@ -279,33 +279,33 @@ public class SetWeaverReloadListener {
 
         if (segments == 3) {
             String dirName = relPath.getName(0).toString();
-            String yearName = relPath.getName(1).toString();
-            if (!"all_majors".equalsIgnoreCase(dirName)) {
-                // Must be {major}/{year}/file.json — check year is numeric
+            String levelName = relPath.getName(1).toString();
+            if (!"all_roles".equalsIgnoreCase(dirName)) {
+                // Must be {role}/{level}/file.json — check level is numeric
                 try {
-                    Integer.parseInt(yearName);
+                    Integer.parseInt(levelName);
                 } catch (NumberFormatException e) {
                     results.add(new ValidationResult(relativePath,
                             ValidationResult.Status.ERROR,
-                            "Year folder '" + yearName + "' is not a number"));
+                            "Level folder '" + levelName + "' is not a number"));
                     return;
                 }
             } else {
                 try {
-                    Integer.parseInt(yearName);
+                    Integer.parseInt(levelName);
                 } catch (NumberFormatException e) {
                     results.add(new ValidationResult(relativePath,
                             ValidationResult.Status.ERROR,
-                            "Year folder '" + yearName + "' under all_majors is not a number"));
+                            "Level folder '" + levelName + "' under all_roles is not a number"));
                     return;
                 }
             }
         } else if (segments == 2) {
             String dirName = relPath.getName(0).toString();
-            if (!"all_majors_all_years".equalsIgnoreCase(dirName) && !"_example".equalsIgnoreCase(dirName)) {
+            if (!"all_roles_all_levels".equalsIgnoreCase(dirName) && !"_example".equalsIgnoreCase(dirName)) {
                 results.add(new ValidationResult(relativePath,
                         ValidationResult.Status.ERROR,
-                        "2-level path must be in 'all_majors_all_years/' directory"));
+                        "2-level path must be in 'all_roles_all_levels/' directory"));
                 return;
             }
         } else {
@@ -444,53 +444,53 @@ public class SetWeaverReloadListener {
     }
 
     private static void handleJsonFile(File file) throws IOException {
-        // ── Determine major & year from relative path depth ──────────────
-        // 3 segments: {major}/{year}/file.json          → standard
-        // 2 segments: all_majors_all_years/file.json    → universal wildcard
+        // ── Determine role & level from relative path depth ──────────────
+        // 3 segments: {role}/{level}/file.json          → standard
+        // 2 segments: all_roles_all_levels/file.json    → universal wildcard
         java.nio.file.Path relativePath = BASE_DIR.toPath().relativize(file.toPath());
         int segmentCount = relativePath.getNameCount(); // includes filename
 
-        String major;
-        int year;
+        String role;
+        int level;
 
         if (segmentCount == 3) {
-            // Standard:    {major}/{year}/file.json
-            // Or:          all_majors/{year}/file.json
-            String majorName = relativePath.getName(0).toString();
-            String yearName  = relativePath.getName(1).toString();
+            // Standard:    {role}/{level}/file.json
+            // Or:          all_roles/{level}/file.json
+            String roleName = relativePath.getName(0).toString();
+            String levelName  = relativePath.getName(1).toString();
 
-            if ("all_majors".equalsIgnoreCase(majorName)) {
-                major = ArmorSetDataRegistry.WILDCARD_MAJOR;
+            if ("all_roles".equalsIgnoreCase(roleName)) {
+                role = ArmorSetDataRegistry.WILDCARD_ROLE;
             } else {
-                major = majorName;
+                role = roleName;
             }
 
             try {
-                year = Integer.parseInt(yearName);
+                level = Integer.parseInt(levelName);
             } catch (NumberFormatException e) {
                 SetWeaver.LOGGER.error(
-                        "[SetWeaver] Invalid year folder '{}' in path: {}. Skipping.",
-                        yearName, file.getAbsolutePath());
+                        "[SetWeaver] Invalid level folder '{}' in path: {}. Skipping.",
+                        levelName, file.getAbsolutePath());
                 return;
             }
 
         } else if (segmentCount == 2) {
-            // Universal:   all_majors_all_years/file.json
+            // Universal:   all_roles_all_levels/file.json
             String dirName = relativePath.getName(0).toString();
-            if (!"all_majors_all_years".equalsIgnoreCase(dirName)) {
+            if (!"all_roles_all_levels".equalsIgnoreCase(dirName)) {
                 SetWeaver.LOGGER.error(
                         "[SetWeaver] Unexpected 2-level path: {}. " +
-                                "Expected 'all_majors_all_years/' or '{major}/{year}/'. Skipping.",
+                                "Expected 'all_roles_all_levels/' or '{role}/{level}/'. Skipping.",
                         file.getAbsolutePath());
                 return;
             }
-            major = ArmorSetDataRegistry.WILDCARD_MAJOR;
-            year  = ArmorSetDataRegistry.WILDCARD_YEAR;
+            role = ArmorSetDataRegistry.WILDCARD_ROLE;
+            level  = ArmorSetDataRegistry.WILDCARD_LEVEL;
 
         } else {
             SetWeaver.LOGGER.error(
                     "[SetWeaver] Invalid directory depth ({} segments) for file: {}. " +
-                            "Expected: {major}/{year}/file.json or all_majors_all_years/file.json",
+                            "Expected: {role}/{level}/file.json or all_roles_all_levels/file.json",
                     segmentCount, file.getAbsolutePath());
             return;
         }
@@ -534,17 +534,17 @@ public class SetWeaverReloadListener {
             }
 
             ArmorSetData validatedData = validateData(rawData, file);
-            ArmorSetDataRegistry.put(major.toLowerCase(), year, tagString, validatedData);
+            ArmorSetDataRegistry.put(role.toLowerCase(), level, tagString, validatedData);
 
             // ── Descriptive log message ──────────────────────────────────
             String scope;
-            if (ArmorSetDataRegistry.WILDCARD_MAJOR.equals(major)
-                    && year == ArmorSetDataRegistry.WILDCARD_YEAR) {
-                scope = "ALL majors, ALL years";
-            } else if (ArmorSetDataRegistry.WILDCARD_MAJOR.equals(major)) {
-                scope = "ALL majors, year=" + year;
+            if (ArmorSetDataRegistry.WILDCARD_ROLE.equals(role)
+                    && level == ArmorSetDataRegistry.WILDCARD_LEVEL) {
+                scope = "ALL roles, ALL levels";
+            } else if (ArmorSetDataRegistry.WILDCARD_ROLE.equals(role)) {
+                scope = "ALL roles, level=" + level;
             } else {
-                scope = "major=" + major + ", year=" + year;
+                scope = "role=" + role + ", level=" + level;
             }
             SetWeaver.LOGGER.info("[SetWeaver] Loaded set definition: {} → tag={}",
                     scope, tagString);

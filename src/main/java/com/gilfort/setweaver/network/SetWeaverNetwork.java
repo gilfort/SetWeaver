@@ -7,7 +7,7 @@ import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 @EventBusSubscriber(modid = SetWeaver.MODID)
-public class ZaubereiNetwork {
+public class SetWeaverNetwork {
 
     @SubscribeEvent
     public static void registerPayload(final RegisterPayloadHandlersEvent event) {

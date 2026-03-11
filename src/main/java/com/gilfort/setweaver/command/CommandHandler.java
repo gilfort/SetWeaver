@@ -45,21 +45,21 @@ import java.util.stream.Collectors;
  * <h3>Command Tree:</h3>
  * <pre>
  * /setweaver
- *   ├── setmajor &lt;major&gt;                           Set your own major
- *   ├── checkmajor &lt;player&gt;                        Check a player's major
- *   ├── setyear &lt;year&gt;                             Set your own year
- *   ├── checkyear &lt;player&gt;                         Check a player's year
+ *   ├── setrole &lt;role&gt;                           Set your own role
+ *   ├── checkrole &lt;player&gt;                        Check a player's role
+ *   ├── setLevel &lt;Level&gt;                             Set your own Level
+ *   ├── checkLevel &lt;player&gt;                         Check a player's Level
  *   ├── debug
  *   │   ├── tag &lt;namespace&gt; &lt;tagpath&gt;             Debug: check if worn armor matches a tag
- *   │   ├── sets                                    Debug: show loaded sets for your major/year
+ *   │   ├── sets                                    Debug: show loaded sets for your role/Level
  *   │   └── reload                                  Reload all set definitions from config
  *   └── sets
  *       ├── list                                    List all loaded set definitions
  *       ├── info &lt;namespace&gt; &lt;tagpath&gt;             Show full details of a set definition
  *       ├── validate                                Check all JSON files for errors
- *       ├── create &lt;ns&gt; &lt;tagpath&gt; universal        Template: all majors + all years
- *       ├── create &lt;ns&gt; &lt;tagpath&gt; all_majors &lt;y&gt;  Template: all majors + specific year
- *       └── create &lt;ns&gt; &lt;tagpath&gt; &lt;major&gt; &lt;year&gt;  Template: specific major + year
+ *       ├── create &lt;ns&gt; &lt;tagpath&gt; universal        Template: all roles + all Levels
+ *       ├── create &lt;ns&gt; &lt;tagpath&gt; all_roles &lt;y&gt;  Template: all roles + specific Level
+ *       └── create &lt;ns&gt; &lt;tagpath&gt; &lt;role&gt; &lt;Level&gt;  Template: specific role + Level
  * </pre>
  */
 public class CommandHandler {
@@ -75,9 +75,9 @@ public class CommandHandler {
     //  SUGGESTION PROVIDERS
     // ═══════════════════════════════════════════════════════════════════════
 
-    /** Suggests all real major names from the registry (excludes wildcard). */
-    public static final SuggestionProvider<CommandSourceStack> MAJOR_SUGGESTIONS = (ctx, builder) ->
-            SharedSuggestionProvider.suggest(ArmorSetDataRegistry.getMajors(), builder);
+    /** Suggests all real role names from the registry (excludes wildcard). */
+    public static final SuggestionProvider<CommandSourceStack> ROLE_SUGGESTIONS = (ctx, builder) ->
+            SharedSuggestionProvider.suggest(ArmorSetDataRegistry.getRoles(), builder);
 
     /**
      * Suggests all unique namespaces from item tags currently loaded in the game.
@@ -146,19 +146,19 @@ public class CommandHandler {
                 Commands.literal("setweaver")
 
                         // ── Player Commands ──────────────────────────────
-                        .then(Commands.literal("setmajor")
-                                .then(Commands.argument("major", StringArgumentType.word())
-                                        .suggests(MAJOR_SUGGESTIONS)
-                                        .executes(CommandHandler::setMajorCommand)))
-                        .then(Commands.literal("checkmajor")
+                        .then(Commands.literal("setrole")
+                                .then(Commands.argument("role", StringArgumentType.word())
+                                        .suggests(ROLE_SUGGESTIONS)
+                                        .executes(CommandHandler::setRoleCommand)))
+                        .then(Commands.literal("checkrole")
                                 .then(Commands.argument("player", StringArgumentType.word())
-                                        .executes(CommandHandler::checkMajorCommand)))
-                        .then(Commands.literal("setyear")
-                                .then(Commands.argument("year", IntegerArgumentType.integer())
-                                        .executes(CommandHandler::setYearCommand)))
-                        .then(Commands.literal("checkyear")
+                                        .executes(CommandHandler::checkRoleCommand)))
+                        .then(Commands.literal("setLevel")
+                                .then(Commands.argument("Level", IntegerArgumentType.integer())
+                                        .executes(CommandHandler::setLevelCommand)))
+                        .then(Commands.literal("checkLevel")
                                 .then(Commands.argument("player", StringArgumentType.word())
-                                        .executes(CommandHandler::checkYearCommand)))
+                                        .executes(CommandHandler::checkLevelCommand)))
                         // /setweaver tag_items <namespace> <tagpath>
                         .then(Commands.literal("tag_items")
                                 .requires(src -> src.hasPermission(2))
@@ -230,27 +230,27 @@ public class CommandHandler {
                                                                 .executes(ctx -> setsCreate(ctx.getSource(),
                                                                         StringArgumentType.getString(ctx, "namespace"),
                                                                         StringArgumentType.getString(ctx, "tagpath"),
-                                                                        ArmorSetDataRegistry.WILDCARD_MAJOR,
-                                                                        ArmorSetDataRegistry.WILDCARD_YEAR)))
+                                                                        ArmorSetDataRegistry.WILDCARD_ROLE,
+                                                                        ArmorSetDataRegistry.WILDCARD_LEVEL)))
 
-                                                        // ... all_majors <year>
-                                                        .then(Commands.literal("all_majors")
-                                                                .then(Commands.argument("year", IntegerArgumentType.integer(1))
+                                                        // ... all_roles <Level>
+                                                        .then(Commands.literal("all_roles")
+                                                                .then(Commands.argument("Level", IntegerArgumentType.integer(1))
                                                                         .executes(ctx -> setsCreate(ctx.getSource(),
                                                                                 StringArgumentType.getString(ctx, "namespace"),
                                                                                 StringArgumentType.getString(ctx, "tagpath"),
-                                                                                ArmorSetDataRegistry.WILDCARD_MAJOR,
-                                                                                IntegerArgumentType.getInteger(ctx, "year")))))
+                                                                                ArmorSetDataRegistry.WILDCARD_ROLE,
+                                                                                IntegerArgumentType.getInteger(ctx, "Level")))))
 
-                                                        // ... <major> <year>
-                                                        .then(Commands.argument("major", StringArgumentType.word())
-                                                                .suggests(MAJOR_SUGGESTIONS)
-                                                                .then(Commands.argument("year", IntegerArgumentType.integer(1))
+                                                        // ... <role> <Level>
+                                                        .then(Commands.argument("role", StringArgumentType.word())
+                                                                .suggests(ROLE_SUGGESTIONS)
+                                                                .then(Commands.argument("Level", IntegerArgumentType.integer(1))
                                                                         .executes(ctx -> setsCreate(ctx.getSource(),
                                                                                 StringArgumentType.getString(ctx, "namespace"),
                                                                                 StringArgumentType.getString(ctx, "tagpath"),
-                                                                                StringArgumentType.getString(ctx, "major"),
-                                                                                IntegerArgumentType.getInteger(ctx, "year")))))))))
+                                                                                StringArgumentType.getString(ctx, "role"),
+                                                                                IntegerArgumentType.getInteger(ctx, "Level")))))))))
         );
     }
 
@@ -372,8 +372,8 @@ public class CommandHandler {
     }
 
 
-    private static int setMajorCommand(CommandContext<CommandSourceStack> context) {
-        String major = StringArgumentType.getString(context, "major");
+    private static int setRoleCommand(CommandContext<CommandSourceStack> context) {
+        String role = StringArgumentType.getString(context, "role");
         CommandSourceStack source = context.getSource();
 
         if (!(source.getEntity() instanceof ServerPlayer player)) {
@@ -381,13 +381,13 @@ public class CommandHandler {
             return Command.SINGLE_SUCCESS;
         }
 
-        PlayerDataHelper.setMajor(player, major);
-        source.sendSuccess(() -> Component.literal("Major set to: " + major), true);
+        PlayerDataHelper.setRole(player, role);
+        source.sendSuccess(() -> Component.literal("Role set to: " + role), true);
         return Command.SINGLE_SUCCESS;
     }
 
-    private static int setYearCommand(CommandContext<CommandSourceStack> context) {
-        int year = IntegerArgumentType.getInteger(context, "year");
+    private static int setLevelCommand(CommandContext<CommandSourceStack> context) {
+        int Level = IntegerArgumentType.getInteger(context, "Level");
         CommandSourceStack source = context.getSource();
 
         if (!(source.getEntity() instanceof ServerPlayer player)) {
@@ -395,12 +395,12 @@ public class CommandHandler {
             return Command.SINGLE_SUCCESS;
         }
 
-        PlayerDataHelper.setYear(player, year);
-        source.sendSuccess(() -> Component.literal("Year set to: " + year), true);
+        PlayerDataHelper.setLevel(player, Level);
+        source.sendSuccess(() -> Component.literal("Level set to: " + Level), true);
         return Command.SINGLE_SUCCESS;
     }
 
-    private static int checkMajorCommand(CommandContext<CommandSourceStack> context) {
+    private static int checkRoleCommand(CommandContext<CommandSourceStack> context) {
         String playerName = StringArgumentType.getString(context, "player");
         CommandSourceStack source = context.getSource();
 
@@ -410,12 +410,12 @@ public class CommandHandler {
             return Command.SINGLE_SUCCESS;
         }
 
-        String major = PlayerDataHelper.getMajor(targetPlayer);
-        source.sendSuccess(() -> Component.literal("Player " + playerName + " has major: " + major), true);
+        String role = PlayerDataHelper.getRole(targetPlayer);
+        source.sendSuccess(() -> Component.literal("Player " + playerName + " has role: " + role), true);
         return Command.SINGLE_SUCCESS;
     }
 
-    private static int checkYearCommand(CommandContext<CommandSourceStack> context) {
+    private static int checkLevelCommand(CommandContext<CommandSourceStack> context) {
         String playerName = StringArgumentType.getString(context, "player");
         CommandSourceStack source = context.getSource();
 
@@ -425,8 +425,8 @@ public class CommandHandler {
             return Command.SINGLE_SUCCESS;
         }
 
-        int year = PlayerDataHelper.getYear(targetPlayer);
-        source.sendSuccess(() -> Component.literal("Player " + playerName + " is in year: " + year), true);
+        int Level = PlayerDataHelper.getLevel(targetPlayer);
+        source.sendSuccess(() -> Component.literal("Player " + playerName + " is in Level: " + Level), true);
         return Command.SINGLE_SUCCESS;
     }
 
@@ -449,16 +449,16 @@ public class CommandHandler {
             return 0;
         }
 
-        String major = PlayerDataHelper.getMajor(player);
-        int year = PlayerDataHelper.getYear(player);
+        String role = PlayerDataHelper.getRole(player);
+        int Level = PlayerDataHelper.getLevel(player);
 
         source.sendSystemMessage(Component.literal("[SetWeaver Debug] ")
                 .withStyle(ChatFormatting.AQUA)
-                .append(Component.literal("major=" + major + ", year=" + year)));
+                .append(Component.literal("role=" + role + ", Level=" + Level)));
 
-        Set<String> tags = ArmorSetDataRegistry.getRegisteredTags(major.toLowerCase(), year);
+        Set<String> tags = ArmorSetDataRegistry.getRegisteredTags(role.toLowerCase(), Level);
         if (tags.isEmpty()) {
-            source.sendSystemMessage(Component.literal("No set tags registered for this major/year.")
+            source.sendSystemMessage(Component.literal("No set tags registered for this role/Level.")
                     .withStyle(ChatFormatting.YELLOW));
             return 1;
         }
@@ -497,8 +497,8 @@ public class CommandHandler {
             return;
         }
 
-        String major = PlayerDataHelper.getMajor(player);
-        int year = PlayerDataHelper.getYear(player);
+        String role = PlayerDataHelper.getRole(player);
+        int Level = PlayerDataHelper.getLevel(player);
         TagKey<Item> tagKey = TagKey.create(Registries.ITEM, tagLoc);
 
         int count = 0;
@@ -525,9 +525,9 @@ public class CommandHandler {
         source.sendSystemMessage(Component.literal(" => wornParts=" + count + "/4")
                 .withStyle(ChatFormatting.AQUA));
 
-        ArmorSetData data = ArmorSetDataRegistry.getData(major.toLowerCase(), year, tagString);
+        ArmorSetData data = ArmorSetDataRegistry.getData(role.toLowerCase(), Level, tagString);
         if (data == null) {
-            source.sendSystemMessage(Component.literal("No set definition loaded for this tag at major/year.")
+            source.sendSystemMessage(Component.literal("No set definition loaded for this tag at role/Level.")
                     .withStyle(ChatFormatting.YELLOW));
         } else {
             source.sendSystemMessage(Component.literal("Set definition: FOUND (parts keys=" + data.getParts().keySet() + ")")
@@ -544,9 +544,9 @@ public class CommandHandler {
     /**
      * Lists all loaded set definitions with scope color-coding:
      * <ul>
-     *   <li>🟢 Green  = specific major + year</li>
-     *   <li>🔵 Blue   = all_majors (year-specific wildcard)</li>
-     *   <li>🟣 Purple = all_majors_all_years (universal)</li>
+     *   <li>🟢 Green  = specific role + Level</li>
+     *   <li>🔵 Blue   = all_roles (Level-specific wildcard)</li>
+     *   <li>🟣 Purple = all_roles_all_Levels (universal)</li>
      * </ul>
      * Each entry is clickable and runs {@code /setweaver sets info} for that tag.
      */
@@ -585,7 +585,7 @@ public class CommandHandler {
                 .append(Component.literal(entries.size() + " set definition(s) loaded:")
                         .withStyle(ChatFormatting.WHITE)));
 
-        // Sort: universal first, then all_majors, then specific
+        // Sort: universal first, then all_roles, then specific
         entries.sort(Comparator
                 .comparingInt((ArmorSetDataRegistry.SetEntry e) -> scopeOrder(e))
                 .thenComparing(ArmorSetDataRegistry.SetEntry::tag));
@@ -626,7 +626,7 @@ public class CommandHandler {
                 .append(Component.literal("● ").withStyle(ChatFormatting.GREEN))
                 .append(Component.literal("specific  ").withStyle(ChatFormatting.GRAY))
                 .append(Component.literal("● ").withStyle(ChatFormatting.BLUE))
-                .append(Component.literal("all_majors  ").withStyle(ChatFormatting.GRAY))
+                .append(Component.literal("all_roles  ").withStyle(ChatFormatting.GRAY))
                 .append(Component.literal("● ").withStyle(ChatFormatting.LIGHT_PURPLE))
                 .append(Component.literal("universal").withStyle(ChatFormatting.GRAY)));
 
@@ -791,14 +791,14 @@ public class CommandHandler {
         return 1;
     }
 
-    // ─── /setweaver sets create <namespace> <tagpath> <scope> [year] ─────
+    // ─── /setweaver sets create <namespace> <tagpath> <scope> [Level] ─────
 
     /**
      * Creates a template JSON file for a set effect definition.
      * Generates the file in the correct directory based on scope.
      */
     private static int setsCreate(CommandSourceStack source, String namespace, String tagpath,
-                                  String major, int year) {
+                                  String role, int Level) {
         String tagString = namespace + ":" + tagpath;
 
         // Verify the tag actually exists in the pack
@@ -826,20 +826,20 @@ public class CommandHandler {
         String filename = namespace + "__" + tagpath + ".json";
         File targetFile;
 
-        boolean isUniversal = ArmorSetDataRegistry.WILDCARD_MAJOR.equals(major)
-                && year == ArmorSetDataRegistry.WILDCARD_YEAR;
-        boolean isAllMajors = ArmorSetDataRegistry.WILDCARD_MAJOR.equals(major)
-                && year != ArmorSetDataRegistry.WILDCARD_YEAR;
+        boolean isUniversal = ArmorSetDataRegistry.WILDCARD_ROLE.equals(role)
+                && Level == ArmorSetDataRegistry.WILDCARD_LEVEL;
+        boolean isAllRoles = ArmorSetDataRegistry.WILDCARD_ROLE.equals(role)
+                && Level != ArmorSetDataRegistry.WILDCARD_LEVEL;
 
         if (isUniversal) {
             targetFile = new File(SET_ARMOR_DIR,
-                    "all_majors_all_years" + File.separator + filename);
-        } else if (isAllMajors) {
+                    "all_roles_all_Levels" + File.separator + filename);
+        } else if (isAllRoles) {
             targetFile = new File(SET_ARMOR_DIR,
-                    "all_majors" + File.separator + year + File.separator + filename);
+                    "all_roles" + File.separator + Level + File.separator + filename);
         } else {
             targetFile = new File(SET_ARMOR_DIR,
-                    major.toLowerCase() + File.separator + year + File.separator + filename);
+                    role.toLowerCase() + File.separator + Level + File.separator + filename);
         }
 
         // Check if file already exists
@@ -897,8 +897,8 @@ public class CommandHandler {
 
         // Success feedback
         String scope = isUniversal ? "universal"
-                : isAllMajors ? "all_majors / year " + year
-                : major + " / year " + year;
+                : isAllRoles ? "all_roles / Level " + Level
+                : role + " / Level " + Level;
         String relativePath = SET_ARMOR_DIR.toPath().relativize(targetFile.toPath()).toString();
 
         source.sendSystemMessage(Component.literal(""));
@@ -948,11 +948,11 @@ public class CommandHandler {
     //  HELPERS
     // ═══════════════════════════════════════════════════════════════════════
 
-    /** Sort order for scope: universal (0), all_majors (1), specific (2). */
+    /** Sort order for scope: universal (0), all_roles (1), specific (2). */
     private static int scopeOrder(ArmorSetDataRegistry.SetEntry entry) {
-        if (ArmorSetDataRegistry.WILDCARD_MAJOR.equals(entry.major())
-                && entry.year() == ArmorSetDataRegistry.WILDCARD_YEAR) return 0;
-        if (ArmorSetDataRegistry.WILDCARD_MAJOR.equals(entry.major())) return 1;
+        if (ArmorSetDataRegistry.WILDCARD_ROLE.equals(entry.role())
+                && entry.level() == ArmorSetDataRegistry.WILDCARD_LEVEL) return 0;
+        if (ArmorSetDataRegistry.WILDCARD_ROLE.equals(entry.role())) return 1;
         return 2;
     }
 
@@ -969,21 +969,21 @@ public class CommandHandler {
 
     /** Human-readable scope label. */
     private static String formatScope(ArmorSetDataRegistry.SetEntry entry) {
-        if (ArmorSetDataRegistry.WILDCARD_MAJOR.equals(entry.major())
-                && entry.year() == ArmorSetDataRegistry.WILDCARD_YEAR) {
-            return "ALL majors / ALL years (universal)";
-        } else if (ArmorSetDataRegistry.WILDCARD_MAJOR.equals(entry.major())) {
-            return "ALL majors / year " + entry.year();
+        if (ArmorSetDataRegistry.WILDCARD_ROLE.equals(entry.role())
+                && entry.level() == ArmorSetDataRegistry.WILDCARD_LEVEL) {
+            return "ALL roles / ALL Levels (universal)";
+        } else if (ArmorSetDataRegistry.WILDCARD_ROLE.equals(entry.role())) {
+            return "ALL roles / Level " + entry.level();
         }
-        return entry.major() + " / year " + entry.year();
+        return entry.role() + " / Level " + entry.level();
     }
 
     /** Scope color for chat display. */
     private static ChatFormatting scopeColor(ArmorSetDataRegistry.SetEntry entry) {
-        if (ArmorSetDataRegistry.WILDCARD_MAJOR.equals(entry.major())
-                && entry.year() == ArmorSetDataRegistry.WILDCARD_YEAR) {
+        if (ArmorSetDataRegistry.WILDCARD_ROLE.equals(entry.role())
+                && entry.level() == ArmorSetDataRegistry.WILDCARD_LEVEL) {
             return ChatFormatting.LIGHT_PURPLE;
-        } else if (ArmorSetDataRegistry.WILDCARD_MAJOR.equals(entry.major())) {
+        } else if (ArmorSetDataRegistry.WILDCARD_ROLE.equals(entry.role())) {
             return ChatFormatting.BLUE;
         }
         return ChatFormatting.GREEN;

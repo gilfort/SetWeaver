@@ -32,7 +32,7 @@ import java.util.*;
  *   <li>Bottom: Save + Cancel buttons</li>
  * </ul>
  *
- * <p>Saves directly to {@code config/zauberei/set-effects/<setId>.json}.
+ * <p>Saves directly to {@code config/setweaver/set-effects/<setId>.json}.
  *
  * @see ArmorSetData
  * @see SetsManagerScreen
@@ -77,7 +77,7 @@ public class SetEditorScreen extends Screen {
                 .gameDirectory
                 .toPath()
                 .resolve("config")
-                .resolve("zauberei")
+                .resolve("setweaver")
                 .resolve("set_armor");
     }
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -1048,7 +1048,7 @@ public class SetEditorScreen extends Screen {
             if (editorData != null) {
                 // Wizard-Modus: resolveFilePath() liefert z.B.
                 //   "naturalist/3/zauberei__magiccloth_armor.json"
-                //   "all_majors_all_years/zauberei__magiccloth_armor.json"
+                //   "all_roles_all_Levels/zauberei__magiccloth_armor.json"
                 String relativePath = editorData.resolveFilePath();
                 file = baseDir.resolve(relativePath);
             } else {
@@ -1056,7 +1056,7 @@ public class SetEditorScreen extends Screen {
                 file = baseDir.resolve(setId + ".json");
             }
 
-            // Übergeordnete Verzeichnisse erstellen (inkl. major/year Unterordner)
+            // Übergeordnete Verzeichnisse erstellen (inkl. role/Level Unterordner)
             Files.createDirectories(file.getParent());
 
             String json = GSON.toJson(data);

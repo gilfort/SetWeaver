@@ -72,7 +72,7 @@ public class SetsManagerScreen extends Screen {
 
     // Icon/Scope-Farben — bleiben bunt
     private static final int COLOR_SPECIFIC  = 0xFF55FF55; // Grün       ●
-    private static final int COLOR_ALL_MAJOR = 0xFF5555FF; // Blau       ●
+    private static final int COLOR_ALL_role = 0xFF5555FF; // Blau       ●
     private static final int COLOR_UNIVERSAL = 0xFFFFFF55; // Gelb       ●
     private static final int COLOR_EFFECT    = 0xFF7733AA; // Lila       (Effekte)
     private static final int COLOR_ATTRIBUTE = 0xFF338833; // Grün       (Attribute)
@@ -105,15 +105,15 @@ public class SetsManagerScreen extends Screen {
      * Can be either a TAG header (grouping) or a SCOPE entry (clickable).
      */
     private record ListEntry(EntryType type, String tag, String scopeLabel,
-                             String major, int year, ArmorSetData data) {
+                             String role, int Level, ArmorSetData data) {
         enum EntryType { TAG_HEADER, SCOPE_ENTRY }
 
         int getColor() {
             if (type == EntryType.TAG_HEADER) return COLOR_HEADER;
-            boolean wildMajor = ArmorSetDataRegistry.WILDCARD_MAJOR.equals(major);
-            boolean wildYear = year == ArmorSetDataRegistry.WILDCARD_YEAR;
-            if (wildMajor && wildYear) return COLOR_UNIVERSAL;
-            if (wildMajor) return COLOR_ALL_MAJOR;
+            boolean wildrole = ArmorSetDataRegistry.WILDCARD_ROLE.equals(role);
+            boolean wildLevel = Level == ArmorSetDataRegistry.WILDCARD_LEVEL;
+            if (wildrole && wildLevel) return COLOR_UNIVERSAL;
+            if (wildrole) return COLOR_ALL_role;
             return COLOR_SPECIFIC;
         }
 
@@ -270,18 +270,18 @@ public class SetsManagerScreen extends Screen {
             listEntries.add(new ListEntry(
                     ListEntry.EntryType.TAG_HEADER, tag, "", "", 0, null));
 
-            // Add scope entries, sorted: universal → all_majors → specific
+            // Add scope entries, sorted: universal → all_roles → specific
             List<ArmorSetDataRegistry.SetEntry> sorted = group.getValue().stream()
                     .sorted(Comparator
                             .comparingInt(SetsManagerScreen::scopePriority)
-                            .thenComparing(ArmorSetDataRegistry.SetEntry::major)
-                            .thenComparingInt(ArmorSetDataRegistry.SetEntry::year))
+                            .thenComparing(ArmorSetDataRegistry.SetEntry::role)
+                            .thenComparingInt(ArmorSetDataRegistry.SetEntry::level))
                     .collect(Collectors.toCollection(ArrayList::new));
 
             for (ArmorSetDataRegistry.SetEntry se : sorted) {
                 listEntries.add(new ListEntry(
                         ListEntry.EntryType.SCOPE_ENTRY, tag,
-                        se.scopeLabel(), se.major(), se.year(), se.data()));
+                        se.scopeLabel(), se.role(), se.level(), se.data()));
             }
         }
 
@@ -295,10 +295,10 @@ public class SetsManagerScreen extends Screen {
     }
 
     private static int scopePriority(ArmorSetDataRegistry.SetEntry e) {
-        boolean wildMajor = ArmorSetDataRegistry.WILDCARD_MAJOR.equals(e.major());
-        boolean wildYear = e.year() == ArmorSetDataRegistry.WILDCARD_YEAR;
-        if (wildMajor && wildYear) return 0; // universal first
-        if (wildMajor) return 1;             // all_majors second
+        boolean wildRole = ArmorSetDataRegistry.WILDCARD_ROLE.equals(e.role());
+        boolean wildLevel = e.level() == ArmorSetDataRegistry.WILDCARD_LEVEL;
+        if (wildRole && wildLevel) return 0; // universal first
+        if (wildRole) return 1;             // all_roles second
         return 2;                            // specific last
     }
 
@@ -932,9 +932,9 @@ public class SetsManagerScreen extends Screen {
 
         assert this.minecraft != null;
 
-        // SetEditorData aus bestehendem Set aufbauen (inkl. Major/Year für korrekten Speicherpfad)
+        // SetEditorData aus bestehendem Set aufbauen (inkl. role/Level für korrekten Speicherpfad)
         SetEditorData editorData = new SetEditorData();
-        editorData.loadFrom(entry.tag(), entry.major(), entry.year(), entry.data());
+        editorData.loadFrom(entry.tag(), entry.role(), entry.Level(), entry.data());
 
         // Wizard-Konstruktor nutzen → editorData bleibt erhalten → Unterordner stimmen beim Speichern
         this.minecraft.setScreen(new SetEditorScreen(this, editorData));

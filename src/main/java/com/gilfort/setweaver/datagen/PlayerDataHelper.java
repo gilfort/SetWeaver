@@ -7,36 +7,36 @@ import net.minecraft.server.level.ServerPlayer;
 
 public class PlayerDataHelper {
     
-    private static final String MAJOR_TAG = "Major";
-    private static final String YEAR_TAG = "Year";
+    private static final String ROLE_TAG = "Role";
+    private static final String LEVEL_TAG = "Level";
 
     private static CompoundTag getTag(ServerPlayer player){
         return player.getData(SetWeaverPlayerData.PLAYER_DATA.get());
     }
 
-    // Speichert den Major-Tag
-    public static void setMajor(ServerPlayer player, String major) {
+    // Speichert den role-Tag
+    public static void setRole(ServerPlayer player, String role) {
         CompoundTag persistentData = getTag(player);
-        persistentData.putString(MAJOR_TAG, major);
+        persistentData.putString(ROLE_TAG, role);
         player.setData(SetWeaverPlayerData.PLAYER_DATA.get(), persistentData);
-        SetWeaver.LOGGER.info("MajorTag set to {} for {}", major, player.getName().getString());
+        SetWeaver.LOGGER.info("Role set to {} for {}", role, player.getName().getString());
     }
 
-    // Liest den Major-Tag
-    public static String getMajor(ServerPlayer player) {
-        return getTag(player).getString(MAJOR_TAG);
+    // Liest den Role-Tag
+    public static String getRole(ServerPlayer player) {
+        return getTag(player).getString(ROLE_TAG);
     }
 
-    // Speichert den Year-Tag
-    public static void setYear(ServerPlayer player, int year) {
+    // Speichert den Level-Tag
+    public static void setLevel(ServerPlayer player, int Level) {
         CompoundTag tag = getTag(player);
-        tag.putInt(YEAR_TAG, year);
+        tag.putInt(LEVEL_TAG, Level);
         player.setData(SetWeaverPlayerData.PLAYER_DATA.get(), tag);
-        SetWeaver.LOGGER.info("YearTag set to {} for {}", year, player.getName().getString());
+        SetWeaver.LOGGER.info("LevelTag set to {} for {}", Level, player.getName().getString());
     }
 
-    // Liest den Year-Tag
-    public static int getYear(ServerPlayer player) {
-        return getTag(player).getInt(YEAR_TAG);
+    // Liest den Level-Tag
+    public static int getLevel(ServerPlayer player) {
+        return getTag(player).getInt(LEVEL_TAG);
     }
 }
