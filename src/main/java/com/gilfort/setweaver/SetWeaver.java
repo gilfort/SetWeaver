@@ -2,10 +2,19 @@ package com.gilfort.setweaver;
 
 import com.gilfort.setweaver.client.ArmorSetTooltipHandler;
 import com.gilfort.setweaver.component.ComponentRegistry;
+import com.gilfort.setweaver.datagen.PlayerDataHelper;
+import com.gilfort.setweaver.network.PlayerDataPayload;
+import com.gilfort.setweaver.network.RegistrySyncPayload;
+import com.gilfort.setweaver.seteffects.ArmorEffects;
+import com.gilfort.setweaver.seteffects.ArmorSetDataRegistry;
 import com.gilfort.setweaver.seteffects.SetWeaverReloadListener;
 import com.gilfort.setweaver.util.SetWeaverPlayerData;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.event.AddReloadListenerEvent;
+import net.neoforged.neoforge.event.OnDatapackSyncEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import net.neoforged.neoforge.network.PacketDistributor;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 
@@ -39,6 +48,7 @@ public class SetWeaver
 
         ComponentRegistry.register(modEventBus);
         SetWeaverPlayerData.ATTACHMENT_TYPES.register(modEventBus);
+        ArmorEffects.register(modEventBus);
 
         NeoForge.EVENT_BUS.register(this);
 
@@ -68,9 +78,65 @@ public class SetWeaver
 
 
 
+    /**
+     * Registers a reload listener so that {@code /reload} re-reads all
+     * set definitions from the config directory.
+     */
     @SubscribeEvent
     public void onAddReloadListenerEvent(AddReloadListenerEvent event) {
+        event.addListener(new SetWeaverReloadListener());
+    }
 
+    /**
+     * Fires after {@code /reload} completes AND when a player logs in.
+     * Syncs the full set definition registry to the affected client(s).
+     * <ul>
+     *   <li>If {@code event.getPlayer()} is non-null → single player login</li>
+     *   <li>If {@code event.getPlayer()} is null → server-wide reload, broadcast to all</li>
+     * </ul>
+     */
+    @SubscribeEvent
+    public void onDatapackSync(OnDatapackSyncEvent event) {
+        String registryJson = ArmorSetDataRegistry.serializeToJson();
+        RegistrySyncPayload registryPayload = new RegistrySyncPayload(registryJson);
+
+        ServerPlayer target = event.getPlayer();
+        if (target != null) {
+            // Single player login — sync to that player only
+            String role = PlayerDataHelper.getRole(target);
+            int year = PlayerDataHelper.getLevel(target);
+            PacketDistributor.sendToPlayer(target, new PlayerDataPayload(role, year));
+            PacketDistributor.sendToPlayer(target, registryPayload);
+            LOGGER.info("[SetWeaver] Synced player data and registry to {}",
+                    target.getName().getString());
+        } else {
+            // Server-wide /reload — broadcast registry to all connected players
+            for (ServerPlayer player : event.getPlayerList().getPlayers()) {
+                // Also re-sync each player's own role/year
+                String role = PlayerDataHelper.getRole(player);
+                int year = PlayerDataHelper.getLevel(player);
+                PacketDistributor.sendToPlayer(player, new PlayerDataPayload(role, year));
+                PacketDistributor.sendToPlayer(player, registryPayload);
+            }
+            LOGGER.info("[SetWeaver] Broadcast registry sync to all players after /reload");
+        }
+    }
+
+    /**
+     * Syncs the player's role and year to their client on login.
+     * This populates the {@link com.gilfort.setweaver.network.ClientPlayerDataCache}
+     * so tooltips work immediately without waiting for the tick event.
+     */
+    @SubscribeEvent
+    public void onPlayerLogin(PlayerEvent.PlayerLoggedInEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player) {
+            String role = PlayerDataHelper.getRole(player);
+            int year = PlayerDataHelper.getLevel(player);
+            PacketDistributor.sendToPlayer(player, new PlayerDataPayload(role, year));
+            PacketDistributor.sendToPlayer(player, new RegistrySyncPayload(ArmorSetDataRegistry.serializeToJson()));
+            LOGGER.info("[SetWeaver] Synced player data and registry to client for {}",
+                    player.getName().getString());
+        }
     }
 
     @EventBusSubscriber(modid = MODID, value = Dist.CLIENT)

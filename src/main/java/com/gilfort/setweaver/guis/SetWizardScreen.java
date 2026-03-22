@@ -62,8 +62,9 @@ public class SetWizardScreen extends Screen {
 
     // ──── Selected values ───────────────────────────────────────────────
     private String selectedTag   = null;   // e.g. "zauberei:magiccloth_armor"
-    private String selectedrole = ArmorSetDataRegistry.WILDCARD_ROLE; // "*"
+    private String selectedRole = ArmorSetDataRegistry.WILDCARD_ROLE; // "*"
     private int    selectedLevel  = ArmorSetDataRegistry.WILDCARD_LEVEL;  // -1
+    private String savedDisplayName = ""; // persists across init() calls
 
     // ──── Widgets ───────────────────────────────────────────────────────
     private Button tagButton;
@@ -133,11 +134,13 @@ public class SetWizardScreen extends Screen {
         displayNameBox.setMaxLength(64);
         displayNameBox.setHint(
                 Component.literal("Optional (e.g. Magic Robes)").withStyle(ChatFormatting.GRAY));
+        displayNameBox.setValue(savedDisplayName);
+        displayNameBox.setResponder(value -> savedDisplayName = value);
         addRenderableWidget(displayNameBox);
 
         // ---- Row 3: role selector button ----
         roleButton = Button.builder(
-                        Component.literal(formatroleLabel(selectedrole)),
+                        Component.literal(formatroleLabel(selectedRole)),
                         btn -> onSelectrole())
                 .bounds(fieldX, row3Y, fieldW, FIELD_HEIGHT)
                 .build();
@@ -278,7 +281,7 @@ public class SetWizardScreen extends Screen {
                 Component.literal("Select role"),
                 this, entries,
                 selected -> {
-                    selectedrole = selected;
+                    selectedRole = selected;
                     roleButton.setMessage(Component.literal(formatroleLabel(selected)));
                     clearStatus();
                 },
@@ -335,7 +338,7 @@ public class SetWizardScreen extends Screen {
         }
 
         // role/Level rule: if role is specific, Level must also be specific
-        boolean wildrole = ArmorSetDataRegistry.WILDCARD_ROLE.equals(selectedrole);
+        boolean wildrole = ArmorSetDataRegistry.WILDCARD_ROLE.equals(selectedRole);
         boolean wildLevel  = (selectedLevel == ArmorSetDataRegistry.WILDCARD_LEVEL);
         if (!wildrole && wildLevel) {
             setStatus("If a role is selected, Level must also be specified.", COLOR_ERROR);
@@ -346,15 +349,15 @@ public class SetWizardScreen extends Screen {
         SetEditorData editorData = new SetEditorData();
         editorData.setTag(selectedTag);
         editorData.setDisplayName(displayNameBox.getValue().trim());
-        editorData.setrole(selectedrole);
+        editorData.setrole(selectedRole);
         editorData.setLevel(selectedLevel);
 
         // ---- 3. Existence check (exact match only) ----
-        ArmorSetData existing = findExactMatch(selectedTag, selectedrole, selectedLevel);
+        ArmorSetData existing = findExactMatch(selectedTag, selectedRole, selectedLevel);
 
         if (existing != null) {
             // Load existing data into editor
-            editorData.loadFrom(selectedTag, selectedrole, selectedLevel, existing);
+            editorData.loadFrom(selectedTag, selectedRole, selectedLevel, existing);
             setStatus("Set already exists — loading for editing.", COLOR_INFO);
         }
 

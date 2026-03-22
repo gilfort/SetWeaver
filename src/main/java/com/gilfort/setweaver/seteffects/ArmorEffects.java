@@ -21,43 +21,48 @@ import net.minecraft.world.item.ItemStack;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
+import net.neoforged.neoforge.network.PacketDistributor;
+import com.gilfort.setweaver.network.PlayerDataPayload;
 
 import java.util.*;
 
-import static com.gilfort.setweaver.component.ComponentRegistry.ROLE;
-import static com.gilfort.setweaver.component.ComponentRegistry.LEVEL;
-
 public class ArmorEffects {
+
+    /** Interval in ticks between set-effect recalculations (60 ticks = 3 seconds). */
+    private static final int TICK_INTERVAL = 60;
+
+    /** Per-player cooldown tracker. Stores the last server tick when effects were applied. */
+    private static final Map<UUID, Long> lastAppliedTick = new HashMap<>();
 
     public static void register(IEventBus eventBus) {
         NeoForge.EVENT_BUS.addListener(ArmorEffects::onPlayerTick);
+        NeoForge.EVENT_BUS.addListener(ArmorEffects::onPlayerLogout);
     }
 
-    private static int tickcounter = 0;
+    /** Clean up per-player tracking data on logout to prevent memory leaks. */
+    public static void onPlayerLogout(net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerLoggedOutEvent event) {
+        lastAppliedTick.remove(event.getEntity().getUUID());
+    }
 
     public static void onPlayerTick(PlayerTickEvent.Post event) {
         if (!event.getEntity().level().isClientSide() && event.getEntity() instanceof ServerPlayer player) {
 
-            tickcounter++;
+            long currentTick = player.getServer().getTickCount();
+            long lastTick = lastAppliedTick.getOrDefault(player.getUUID(), 0L);
 
-            if (tickcounter < 60) {
+            if (currentTick - lastTick < TICK_INTERVAL) {
                 return;
             }
 
-            tickcounter = 0;
+            lastAppliedTick.put(player.getUUID(), currentTick);
 
             String role = PlayerDataHelper.getRole(player);
             int level = PlayerDataHelper.getLevel(player);
 
             applySetBasedEffects(player, role, level);
 
-            // keep components updated on armor stacks (used by tooltip)
-            for (ItemStack stack : player.getArmorSlots()) {
-                if (stack.getItem() instanceof ArmorItem) {
-                    stack.set(ROLE.value(), role);
-                    stack.set(LEVEL.value(), level);
-                }
-            }
+            // Sync role/year to client cache (ensures tooltip works on dedicated servers)
+            PacketDistributor.sendToPlayer(player, new PlayerDataPayload(role, level));
         }
     }
 

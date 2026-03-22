@@ -5,6 +5,7 @@ import com.gilfort.setweaver.seteffects.ArmorSetData;
 import com.gilfort.setweaver.seteffects.ArmorSetData.AttributeData;
 import com.gilfort.setweaver.seteffects.ArmorSetData.EffectData;
 import com.gilfort.setweaver.seteffects.ArmorSetData.PartData;
+import com.gilfort.setweaver.network.SaveSetPayload;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import net.minecraft.ChatFormatting;
@@ -16,9 +17,6 @@ import net.minecraft.network.chat.Component;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.*;
 
 /**
@@ -71,15 +69,6 @@ public class SetEditorScreen extends Screen {
 
 
 
-    // ──── Save path ─────────────────────────────────────────────────────
-    private Path getSaveDir() {
-        return net.minecraft.client.Minecraft.getInstance()
-                .gameDirectory
-                .toPath()
-                .resolve("config")
-                .resolve("setweaver")
-                .resolve("set_armor");
-    }
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
     // ──── Data ──────────────────────────────────────────────────────────
@@ -1024,48 +1013,42 @@ public class SetEditorScreen extends Screen {
     // ════════════════════════════════════════════════════════════════════
 
     private void saveToJson() {
-        try {
-            ArmorSetData data = new ArmorSetData();
-            data.setDisplayName(displayName);
+        ArmorSetData data = new ArmorSetData();
+        data.setDisplayName(displayName);
 
-            Map<String, PartData> partsMap = new LinkedHashMap<>();
-            for (int i = 0; i < PARTS; i++) {
-                List<EffectData> effects = partEffects[i];
-                Map<String, AttributeData> attrs = partAttributes[i];
-                if (!effects.isEmpty() || !attrs.isEmpty()) {
-                    PartData pd = new PartData();
-                    pd.setEffects(new ArrayList<>(effects));
-                    pd.setAttributes(new LinkedHashMap<>(attrs));
-                    partsMap.put((i + 1) + "Part", pd);
-                }
+        Map<String, PartData> partsMap = new LinkedHashMap<>();
+        for (int i = 0; i < PARTS; i++) {
+            List<EffectData> effects = partEffects[i];
+            Map<String, AttributeData> attrs = partAttributes[i];
+            if (!effects.isEmpty() || !attrs.isEmpty()) {
+                PartData pd = new PartData();
+                pd.setEffects(new ArrayList<>(effects));
+                pd.setAttributes(new LinkedHashMap<>(attrs));
+                partsMap.put((i + 1) + "Part", pd);
             }
-            data.setParts(partsMap);
-
-            // Pfad berechnen: Base-Dir + Unterordner aus EditorData
-            Path baseDir = getSaveDir();
-            Path file;
-
-            if (editorData != null) {
-                // Wizard-Modus: resolveFilePath() liefert z.B.
-                //   "naturalist/3/zauberei__magiccloth_armor.json"
-                //   "all_roles_all_Levels/zauberei__magiccloth_armor.json"
-                String relativePath = editorData.resolveFilePath();
-                file = baseDir.resolve(relativePath);
-            } else {
-                // Legacy Create/Edit-Modus: direkt in set-armor
-                file = baseDir.resolve(setId + ".json");
-            }
-
-            // Übergeordnete Verzeichnisse erstellen (inkl. role/Level Unterordner)
-            Files.createDirectories(file.getParent());
-
-            String json = GSON.toJson(data);
-            Files.writeString(file, json);
-
-            setStatus("✔ Saved to " + baseDir.relativize(file), false);
-        } catch (IOException e) {
-            setStatus("✘ Save failed: " + e.getMessage(), true);
         }
+        data.setParts(partsMap);
+
+        // Resolve relative path within config/setweaver/set_armor/
+        String relativePath;
+        if (editorData != null) {
+            // Wizard mode: resolveFilePath() returns e.g.
+            //   "naturalist/3/zauberei__magiccloth_armor.json"
+            //   "all_roles_all_Levels/zauberei__magiccloth_armor.json"
+            relativePath = editorData.resolveFilePath();
+        } else {
+            // Legacy create/edit mode
+            relativePath = setId + ".json";
+        }
+
+        String json = GSON.toJson(data);
+
+        // Send to server for saving, reloading, and syncing to all clients
+        net.neoforged.neoforge.network.PacketDistributor.sendToServer(
+                new SaveSetPayload(relativePath, json)
+        );
+
+        setStatus("Saving to server: " + relativePath, false);
     }
 
 

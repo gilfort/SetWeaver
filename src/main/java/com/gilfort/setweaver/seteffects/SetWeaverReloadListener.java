@@ -5,6 +5,9 @@ import com.google.gson.*;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.locale.Language;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.packs.resources.PreparableReloadListener;
+import net.minecraft.server.packs.resources.ResourceManager;
+import net.minecraft.util.profiling.ProfilerFiller;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.neoforged.fml.loading.FMLPaths;
@@ -15,30 +18,52 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 
 /**
- * Loads all JSON files from config/zauberei/set_armor/.
+ * Loads all JSON files from config/setweaver/set_armor/.
  *
  * Folder structure:
- *   config/zauberei/set_armor/{role}/{level}/{namespace}__{tagpath}.json
+ *   config/setweaver/set_armor/{role}/{level}/{namespace}__{tagpath}.json
  *
  * Examples:
- *   config/zauberei/set_armor/naturalist/3/zauberei__magiccloth_armor.json
- *   config/zauberei/set_armor/naturalist/3/arsnouveau__tier2armor.json
+ *   config/setweaver/set_armor/naturalist/3/setweaver__magiccloth_armor.json
+ *   config/setweaver/set_armor/naturalist/3/arsnouveau__tier2armor.json
  *
  * Filename is interpreted as an item tag:
- *   "zauberei__magiccloth_armor" -> "zauberei:magiccloth_armor"
+ *   "setweaver__magiccloth_armor" -> "setweaver:magiccloth_armor"
  *
  * Tag-only (no armor material compatibility).
  */
-public class SetWeaverReloadListener {
+public class SetWeaverReloadListener implements PreparableReloadListener {
 
     private static final File BASE_DIR = new File(
             FMLPaths.CONFIGDIR.get().toFile(),
-            "zauberei" + File.separator + "set_armor"
+            "setweaver" + File.separator + "set_armor"
     );
 
     private static final Gson GSON = new Gson();
+
+    /**
+     * Called by vanilla/NeoForge when {@code /reload} is executed.
+     * Reloads all set definitions from the config directory.
+     * The actual client sync is handled by {@link SetWeaver#onDatapackSync}.
+     */
+    @Override
+    public CompletableFuture<Void> reload(PreparationBarrier preparationBarrier,
+                                          ResourceManager resourceManager,
+                                          ProfilerFiller preparationsProfiler,
+                                          ProfilerFiller reloadProfiler,
+                                          Executor backgroundExecutor,
+                                          Executor gameExecutor) {
+        return CompletableFuture.runAsync(() -> {
+            // Nothing to prepare
+        }, backgroundExecutor).thenCompose(preparationBarrier::wait).thenRunAsync(() -> {
+            loadAllEffects();
+            SetWeaver.LOGGER.info("[SetWeaver] Reloaded set definitions via /reload");
+        }, gameExecutor);
+    }
 
     public static void loadAllEffects() {
         boolean firstRun = !BASE_DIR.exists();
@@ -72,7 +97,7 @@ public class SetWeaverReloadListener {
 
             ── FOLDER STRUCTURE ─────────────────────────────────────────────
 
-              config/zauberei/set_armor/
+              config/setweaver/set_armor/
               ├── {role}/{level}/          Standard: applies to specific role + level
               ├── all_roles/{level}/       Wildcard: applies to ALL roles for a level
               └── all_roles_all_levels/    Universal: applies ALWAYS (no role/level needed)
@@ -91,7 +116,7 @@ public class SetWeaverReloadListener {
               The double underscore (__) becomes a colon (:) → item tag reference
 
               Examples:
-                zauberei__magiccloth_armor.json  → tag "zauberei:magiccloth_armor"
+                setweaver__magiccloth_armor.json  → tag "setweaver:magiccloth_armor"
                 c__iron_armors.json              → tag "c:iron_armors"
                 minecraft__gold_armor.json       → tag "minecraft:gold_armor"
 
@@ -163,23 +188,23 @@ public class SetWeaverReloadListener {
 
             ── INGAME COMMANDS ──────────────────────────────────────────────
 
-              /zauberei reload                      Reload all set definitions
-              /zauberei debug sets                  Show all loaded sets for your role/level
-              /zauberei debug tag <tag>             Debug a specific tag match
-              /zauberei setrole <role>            Set your role
-              /zauberei setlevel <level>              Set your level
-              /zauberei checkrole <player>         Check a player's role
-              /zauberei checklevel <player>           Check a player's level
-              /zauberei sets list                   List all loaded set definitions
-              /zauberei sets create <tag>           Generate a template JSON for a tag
-              /zauberei sets validate               Check all JSON files for errors
-              /zauberei sets info <tag>             Show full details of a set definition
+              /setweaver reload                      Reload all set definitions
+              /setweaver debug sets                  Show all loaded sets for your role/level
+              /setweaver debug tag <tag>             Debug a specific tag match
+              /setweaver setrole <role>            Set your role
+              /setweaver setlevel <level>              Set your level
+              /setweaver checkrole <player>         Check a player's role
+              /setweaver checklevel <player>           Check a player's level
+              /setweaver sets list                   List all loaded set definitions
+              /setweaver sets create <tag>           Generate a template JSON for a tag
+              /setweaver sets validate               Check all JSON files for errors
+              /setweaver sets info <tag>             Show full details of a set definition
 
             ── TIPS ─────────────────────────────────────────────────────────
 
-              • Use /zauberei sets create to generate template files quickly
-              • Use /zauberei sets validate after editing to catch errors
-              • Use /zauberei reload to apply changes without restart
+              • Use /setweaver sets create to generate template files quickly
+              • Use /setweaver sets validate after editing to catch errors
+              • Use /setweaver reload to apply changes without restart
               • The tooltip shows [SHIFT] to reveal set bonuses on any armor piece
               • If an item belongs to multiple sets, SHIFT+Scroll to browse them
               • "displayName" is optional — without it, the tag path is auto-formatted
@@ -197,7 +222,7 @@ public class SetWeaverReloadListener {
     private static void writeExampleFile() {
         File exampleDir = new File(BASE_DIR, "_example" + File.separator + "1");
         exampleDir.mkdirs();
-        File exampleFile = new File(exampleDir, "zauberei__example_armor.json.disabled");
+        File exampleFile = new File(exampleDir, "setweaver__example_armor.json.disabled");
         if (exampleFile.exists()) return;
 
         String content = """
@@ -501,7 +526,7 @@ public class SetWeaverReloadListener {
         if (!fileName.contains("__")) {
             SetWeaver.LOGGER.error(
                     "[SetWeaver] Invalid filename '{}' – expected format: " +
-                            "namespace__tagpath.json (e.g. 'zauberei__magiccloth_armor.json'). Skipping.",
+                            "namespace__tagpath.json (e.g. 'setweaver__magiccloth_armor.json'). Skipping.",
                     file.getName());
             return;
         }

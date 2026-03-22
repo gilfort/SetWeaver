@@ -1,6 +1,8 @@
 package com.gilfort.setweaver.network;
 
+import com.gilfort.setweaver.SetWeaver;
 import com.gilfort.setweaver.guis.SetsManagerScreen;
+import com.gilfort.setweaver.seteffects.ArmorSetDataRegistry;
 import net.minecraft.client.Minecraft;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
@@ -18,6 +20,31 @@ public class ClientPayloadHandler {
                                          final IPayloadContext context) {
         context.enqueueWork(() -> {
             Minecraft.getInstance().setScreen(new SetsManagerScreen());
+        });
+    }
+
+    /**
+     * Called when the server syncs the player's role and year.
+     * Updates the client-side cache used by tooltip rendering.
+     */
+    public static void handlePlayerData(final PlayerDataPayload payload,
+                                        final IPayloadContext context) {
+        context.enqueueWork(() -> {
+            ClientPlayerDataCache.update(payload.role(), payload.year());
+        });
+    }
+
+    /**
+     * Called when the server syncs the entire set definition registry.
+     * Replaces the client-side ArmorSetDataRegistry so tooltips and GUIs
+     * can display set data on dedicated servers.
+     */
+    public static void handleRegistrySync(final RegistrySyncPayload payload,
+                                          final IPayloadContext context) {
+        context.enqueueWork(() -> {
+            ArmorSetDataRegistry.deserializeFromJson(payload.registryJson());
+            SetWeaver.LOGGER.info("[SetWeaver] Received registry sync from server ({} chars)",
+                    payload.registryJson().length());
         });
     }
 }
