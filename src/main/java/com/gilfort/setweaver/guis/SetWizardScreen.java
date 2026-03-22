@@ -61,9 +61,10 @@ public class SetWizardScreen extends Screen {
     private final Screen parentScreen;
 
     // ──── Selected values ───────────────────────────────────────────────
-    private String selectedTag   = null;   // e.g. "zauberei:magiccloth_armor"
-    private String selectedrole = ArmorSetDataRegistry.WILDCARD_ROLE; // "*"
-    private int    selectedLevel  = ArmorSetDataRegistry.WILDCARD_LEVEL;  // -1
+    private String selectedTag         = null;   // e.g. "zauberei:magiccloth_armor"
+    private String selectedrole        = ArmorSetDataRegistry.WILDCARD_ROLE; // "*"
+    private int    selectedLevel       = ArmorSetDataRegistry.WILDCARD_LEVEL;  // -1
+    private String savedDisplayName    = "";     // persists across init() calls (e.g. popup return)
 
     // ──── Widgets ───────────────────────────────────────────────────────
     private Button tagButton;
@@ -133,6 +134,8 @@ public class SetWizardScreen extends Screen {
         displayNameBox.setMaxLength(64);
         displayNameBox.setHint(
                 Component.literal("Optional (e.g. Magic Robes)").withStyle(ChatFormatting.GRAY));
+        displayNameBox.setValue(savedDisplayName);
+        displayNameBox.setResponder(value -> savedDisplayName = value);
         addRenderableWidget(displayNameBox);
 
         // ---- Row 3: role selector button ----
