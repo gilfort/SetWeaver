@@ -208,11 +208,11 @@ public class SetsManagerScreen extends Screen {
         buildListEntries();
 
         // ── Buttons ──────────────────────────────────────────────────────
-        int buttonW = 60;
+        int buttonW = 55;
         int buttonH = 20;
         int buttonY = margin + contentH + 4;
         int buttonSpacing = 8;
-        int totalButtonsW = buttonW * 6 + buttonSpacing * 5;
+        int totalButtonsW = buttonW * 7 + buttonSpacing * 6;
         int buttonStartX = (this.width - totalButtonsW) / 2;
 
         addRenderableWidget(Button.builder(Component.literal("Reload"), btn -> onReload())
@@ -223,10 +223,12 @@ public class SetsManagerScreen extends Screen {
                 .bounds(buttonStartX + (buttonW + buttonSpacing) * 2, buttonY, buttonW, buttonH).build());
         addRenderableWidget(Button.builder(Component.literal("Edit"), btn -> onEditSet())
                 .bounds(buttonStartX + (buttonW + buttonSpacing) * 3, buttonY, buttonW, buttonH).build());
-        addRenderableWidget(Button.builder(Component.literal("Create"), btn -> onCreateSet())
+        addRenderableWidget(Button.builder(Component.literal("Copy"), btn -> onCopySet())
                 .bounds(buttonStartX + (buttonW + buttonSpacing) * 4, buttonY, buttonW, buttonH).build());
-        addRenderableWidget(Button.builder(Component.literal("Close"), btn -> onClose())
+        addRenderableWidget(Button.builder(Component.literal("Create"), btn -> onCreateSet())
                 .bounds(buttonStartX + (buttonW + buttonSpacing) * 5, buttonY, buttonW, buttonH).build());
+        addRenderableWidget(Button.builder(Component.literal("Close"), btn -> onClose())
+                .bounds(buttonStartX + (buttonW + buttonSpacing) * 6, buttonY, buttonW, buttonH).build());
 
 
 // ── Tag Search Box (unsichtbar bis Tag-Browser aktiv) ────────────
@@ -917,6 +919,24 @@ public class SetsManagerScreen extends Screen {
     }
 
     // ─── Button actions ──────────────────────────────────────────────────
+
+    /**
+     * Opens the Set Wizard in "copy" mode for the currently selected set.
+     * The wizard is pre-filled with the source set's data; the user can change
+     * role/level (and tag/display name) before proceeding to the editor.
+     */
+    private void onCopySet() {
+        if (selectedIndex < 0 || selectedIndex >= listEntries.size()) return;
+        ListEntry entry = listEntries.get(selectedIndex);
+        if (entry.type() != ListEntry.EntryType.SCOPE_ENTRY || entry.data() == null) return;
+
+        assert this.minecraft != null;
+
+        SetEditorData sourceData = new SetEditorData();
+        sourceData.loadFrom(entry.tag(), entry.role(), entry.level(), entry.data());
+
+        this.minecraft.setScreen(new SetWizardScreen(this, sourceData));
+    }
 
     /** Opens the Set Wizard (Step 1) to create or edit a set definition. */
     private void onCreateSet() {

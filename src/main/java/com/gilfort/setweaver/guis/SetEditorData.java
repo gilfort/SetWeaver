@@ -262,6 +262,28 @@ public class SetEditorData {
     }
 
     /**
+     * Copies all part configurations (enabled flags, effects, attributes) from
+     * another SetEditorData into this one. Used by the "Copy existing Set" feature.
+     *
+     * @param source the source editor data to copy parts from
+     */
+    public void copyPartsFrom(SetEditorData source) {
+        for (int i = 0; i < 4; i++) {
+            partsEnabled[i] = source.partsEnabled[i];
+            PartConfig src = source.partConfigs.get(i);
+            PartConfig dst = partConfigs.get(i);
+            dst.getEffects().clear();
+            dst.getAttributes().clear();
+            for (EffectEntry e : src.getEffects()) {
+                dst.getEffects().add(new EffectEntry(e.getEffectId(), e.getAmplifier()));
+            }
+            for (AttributeEntry a : src.getAttributes()) {
+                dst.getAttributes().add(new AttributeEntry(a.getAttributeId(), a.getOperation(), a.getValue()));
+            }
+        }
+    }
+
+    /**
      * Copies effects and/or attributes from one part to another.
      * Existing data in the target is replaced (not merged).
      *

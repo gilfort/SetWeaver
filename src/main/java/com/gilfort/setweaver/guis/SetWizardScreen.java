@@ -60,6 +60,12 @@ public class SetWizardScreen extends Screen {
     // ──── References ───────────────────────────────────────────────────
     private final Screen parentScreen;
 
+    /**
+     * When non-null, the wizard is in "copy" mode: part configs from this source
+     * are applied to the new set (unless the target scope already exists).
+     */
+    private final SetEditorData sourceData;
+
     // ──── Selected values ───────────────────────────────────────────────
     private String selectedTag   = null;   // e.g. "zauberei:magiccloth_armor"
     private String selectedRole = ArmorSetDataRegistry.WILDCARD_ROLE; // "*"
@@ -85,13 +91,34 @@ public class SetWizardScreen extends Screen {
     // ══════════════════════════════════════════════════════════════════
 
     /**
-     * Creates the wizard Step 1 screen.
+     * Creates the wizard Step 1 screen for creating a new set from scratch.
      *
      * @param parentScreen the screen to return to on "Back" (typically SetsManagerScreen)
      */
     public SetWizardScreen(Screen parentScreen) {
         super(Component.literal("Set Wizard — Step 1"));
         this.parentScreen = parentScreen;
+        this.sourceData = null;
+    }
+
+    /**
+     * Creates the wizard Step 1 screen in "copy" mode.
+     * The form is pre-filled with the source set's tag, display name, role and level.
+     * The user can change scope (role/level) before proceeding; part configs are
+     * copied from {@code sourceData} into the new set unless the target scope already exists.
+     *
+     * @param parentScreen the screen to return to on "Back"
+     * @param sourceData   the existing set to use as a copy template
+     */
+    public SetWizardScreen(Screen parentScreen, SetEditorData sourceData) {
+        super(Component.literal("Set Wizard — Copy Set"));
+        this.parentScreen = parentScreen;
+        this.sourceData = sourceData;
+        // Pre-fill from source
+        this.selectedTag = sourceData.getTag();
+        this.selectedRole = sourceData.getrole();
+        this.selectedLevel = sourceData.getLevel();
+        this.savedDisplayName = sourceData.getDisplayName();
     }
 
     // ══════════════════════════════════════════════════════════════════
@@ -196,9 +223,11 @@ public class SetWizardScreen extends Screen {
         int row4Y = row3Y + ROW_HEIGHT;
 
         // Title
+        String titleText = sourceData != null
+                ? "Copy Set — Step 1: New Scope"
+                : "Set Wizard — Step 1: Tag & Scope";
         graphics.drawString(this.font,
-                Component.literal("Set Wizard — Step 1: Tag & Scope")
-                        .withStyle(s -> s.withBold(true)),
+                Component.literal(titleText).withStyle(s -> s.withBold(true)),
                 panelX + PADDING, panelY + PADDING, COLOR_TEXT, false);
 
         // Row labels
@@ -356,9 +385,12 @@ public class SetWizardScreen extends Screen {
         ArmorSetData existing = findExactMatch(selectedTag, selectedRole, selectedLevel);
 
         if (existing != null) {
-            // Load existing data into editor
+            // Load existing data into editor (overrides any copy template)
             editorData.loadFrom(selectedTag, selectedRole, selectedLevel, existing);
             setStatus("Set already exists — loading for editing.", COLOR_INFO);
+        } else if (sourceData != null) {
+            // Copy mode: apply part configs from source set into the new scope
+            editorData.copyPartsFrom(sourceData);
         }
 
         // ---- 4. Proceed to Step 2 ----
@@ -380,7 +412,8 @@ public class SetWizardScreen extends Screen {
      */
     private void proceedToStep2(SetEditorData editorData) {
         assert this.minecraft != null;
-        this.minecraft.setScreen(new SetEditorScreen(this, editorData));
+        // Pass parentScreen as mainScreen so "Save & Exit" skips the wizard and goes straight to the manager.
+        this.minecraft.setScreen(new SetEditorScreen(this, parentScreen, editorData));
     }
 
     // ══════════════════════════════════════════════════════════════════
