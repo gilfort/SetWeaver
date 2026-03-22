@@ -252,7 +252,7 @@ public class SetEditorScreen extends Screen {
         maxAttrVisible   = panelListH / ITEM_HEIGHT;
         // Attribute column widths (fixed, so click zones don't jump)
         attrModColW = this.font.width("multiply_total") + 8;
-        attrValColW = this.font.width("+00000.00") + 8;
+        attrValColW = this.font.width("+100% Base [×2.0] Speed") + 8;
         attrNameColW = (rightPanelW - 2 * PADDING) - attrValColW - attrModColW;
 
 
@@ -630,6 +630,68 @@ public class SetEditorScreen extends Screen {
             }
         }
         // EditBox renders itself via widgets — no extra drawing needed for AMP/VALUE
+
+        // ── Live preview line below overlay for ATTR_VALUE edits ──
+        if (inlineEditTarget == InlineEditTarget.ATTR_VALUE && inlineEditBox != null) {
+            List<Map.Entry<String, AttributeData>> entries =
+                    new ArrayList<>(partAttributes[activeTab].entrySet());
+            if (inlineEditIndex < entries.size()) {
+                String attrId = entries.get(inlineEditIndex).getKey();
+                AttributeData ad = entries.get(inlineEditIndex).getValue();
+                String operation = ad.getModifier() != null ? ad.getModifier() : "addition";
+
+                // Parse the current EditBox value for live preview
+                String text = inlineEditBox.getValue().trim();
+                double previewVal = ad.getValue(); // fallback to current
+                try {
+                    if (!text.isEmpty()) previewVal = Double.parseDouble(text);
+                } catch (NumberFormatException ignored) {}
+
+                String preview = AttributePreviewHelper.getPreviewText(attrId, previewVal, operation);
+                int previewColor = AttributePreviewHelper.isNegative(previewVal, operation)
+                        ? 0xFFFF6666 : 0xFF66FF66;
+
+                // Draw preview below overlay
+                int py = overlayY + ITEM_HEIGHT + 2;
+                int pw = this.font.width(preview) + 8;
+                int px = overlayX + (overlayW - pw) / 2;
+                g.fill(px - 2, py - 1, px + pw + 2, py + 10, 0xDD000000);
+                g.fill(px - 2, py - 1, px + pw + 2, py, 0xFFDAA520); // gold top border
+                g.drawString(this.font, preview, px + 4, py + 1, previewColor, false);
+
+                // Formula line for percent modifiers
+                String formula = AttributePreviewHelper.getFormulaText(previewVal, operation);
+                if (formula != null) {
+                    int fy = py + 12;
+                    int fw = this.font.width(formula) + 8;
+                    int fx = overlayX + (overlayW - fw) / 2;
+                    g.fill(fx - 2, fy - 1, fx + fw + 2, fy + 10, 0xCC000000);
+                    g.drawString(this.font, formula, fx + 4, fy + 1, 0xFF999999, false);
+                }
+            }
+        }
+
+        // ── Live preview for ATTR_MODIFIER edits ──
+        if (inlineEditTarget == InlineEditTarget.ATTR_MODIFIER) {
+            List<Map.Entry<String, AttributeData>> entries =
+                    new ArrayList<>(partAttributes[activeTab].entrySet());
+            if (inlineEditIndex < entries.size()) {
+                String attrId = entries.get(inlineEditIndex).getKey();
+                AttributeData ad = entries.get(inlineEditIndex).getValue();
+                String operation = ad.getModifier() != null ? ad.getModifier() : "addition";
+
+                String preview = AttributePreviewHelper.getPreviewText(attrId, ad.getValue(), operation);
+                int previewColor = AttributePreviewHelper.isNegative(ad.getValue(), operation)
+                        ? 0xFFFF6666 : 0xFF66FF66;
+
+                int py = overlayY + ITEM_HEIGHT + 2;
+                int pw = this.font.width(preview) + 8;
+                int px = overlayX + (overlayW - pw) / 2;
+                g.fill(px - 2, py - 1, px + pw + 2, py + 10, 0xDD000000);
+                g.fill(px - 2, py - 1, px + pw + 2, py, 0xFFDAA520);
+                g.drawString(this.font, preview, px + 4, py + 1, previewColor, false);
+            }
+        }
     }
 
 
@@ -682,6 +744,8 @@ public class SetEditorScreen extends Screen {
         int valColW = attrValColW;
         int nameColW = attrNameColW;
 
+        // Track hovered entry for formula tooltip
+        int hoveredIndex = -1;
 
         g.enableScissor(lx, ly, lx + lw, ly + panelListH);
 
@@ -695,15 +759,21 @@ public class SetEditorScreen extends Screen {
                 int ay = ly + (i - attributeScrollOffset) * ITEM_HEIGHT;
                 Map.Entry<String, AttributeData> entry = entries.get(i);
                 AttributeData ad = entry.getValue();
+                String attrId = entry.getKey();
+                String operation = ad.getModifier() != null ? ad.getModifier() : "addition";
+
+                boolean isHovered = mouseX >= lx && mouseX <= lx + lw
+                        && mouseY >= ay && mouseY < ay + ITEM_HEIGHT;
 
                 if (i == selectedAttributeIndex) {
                     g.fill(lx, ay, lx + lw, ay + ITEM_HEIGHT, COLOR_SELECTED);
-                } else if (mouseX >= lx && mouseX <= lx + lw && mouseY >= ay && mouseY < ay + ITEM_HEIGHT) {
+                } else if (isHovered) {
                     g.fill(lx, ay, lx + lw, ay + ITEM_HEIGHT, COLOR_HOVER);
+                    hoveredIndex = i;
                 }
 
-                // Column 1: Name (left-aligned)
-                String attrName = shortName(entry.getKey());
+                // Column 1: Formatted name (Title Case, left-aligned)
+                String attrName = AttributePreviewHelper.formatAttributeShort(attrId);
                 int maxNameW = nameColW - 6;
                 if (this.font.width(attrName) > maxNameW) {
                     while (this.font.width(attrName + "..") > maxNameW && attrName.length() > 3) {
@@ -713,15 +783,24 @@ public class SetEditorScreen extends Screen {
                 }
                 g.drawString(this.font, attrName, lx + 3, ay + 3, COLOR_TEXT, false);
 
-                // Column 2: Value (right-aligned in its column)
-                String sign = ad.getValue() >= 0 ? "+" : "";
-                String valText = sign + String.format("%.2f", ad.getValue());
+                // Column 2: Human-readable preview (right-aligned in its column)
+                String preview = AttributePreviewHelper.getPreviewText(attrId, ad.getValue(), operation);
+                int previewColor = AttributePreviewHelper.isNegative(ad.getValue(), operation)
+                        ? 0xFFCC3333 : COLOR_GREEN;
                 int valColX = lx + nameColW;
-                int valTextX = valColX + valColW - this.font.width(valText) - 4;
-                g.drawString(this.font, valText, valTextX, ay + 3, COLOR_GRAY, false);
+                // Truncate preview if too wide for value column
+                int maxPreviewW = valColW - 6;
+                if (this.font.width(preview) > maxPreviewW) {
+                    while (this.font.width(preview + "..") > maxPreviewW && preview.length() > 3) {
+                        preview = preview.substring(0, preview.length() - 1);
+                    }
+                    preview += "..";
+                }
+                int previewTextX = valColX + valColW - this.font.width(preview) - 4;
+                g.drawString(this.font, preview, previewTextX, ay + 3, previewColor, false);
 
                 // Column 3: Modifier (left-aligned in its column)
-                String modText = ad.getModifier() == null ? "add" : ad.getModifier();
+                String modText = operation;
                 int modColX = lx + nameColW + valColW;
                 g.drawString(this.font, modText, modColX + 3, ay + 3, 0xFF887744, false);
 
@@ -732,6 +811,24 @@ public class SetEditorScreen extends Screen {
         }
 
         g.disableScissor();
+
+        // ── Formula tooltip when hovering a percent modifier ──
+        int tooltipIndex = hoveredIndex >= 0 ? hoveredIndex : selectedAttributeIndex;
+        if (tooltipIndex >= 0 && tooltipIndex < entries.size()) {
+            Map.Entry<String, AttributeData> entry = entries.get(tooltipIndex);
+            AttributeData ad = entry.getValue();
+            String operation = ad.getModifier() != null ? ad.getModifier() : "addition";
+            String formula = AttributePreviewHelper.getFormulaText(ad.getValue(), operation);
+
+            if (formula != null) {
+                // Draw formula line below the attribute panel area
+                int formulaY = ly + panelListH + 2;
+                int formulaW = this.font.width(formula) + 8;
+                int formulaX = lx + (lw - formulaW) / 2;
+                g.fill(formulaX - 2, formulaY - 1, formulaX + formulaW + 2, formulaY + 10, 0xCC000000);
+                g.drawString(this.font, formula, formulaX + 4, formulaY + 1, 0xFF999999, false);
+            }
+        }
     }
 
 
