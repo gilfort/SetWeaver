@@ -81,10 +81,10 @@ public class SetEditorScreen extends Screen {
 
     /**
      * Working copy of the set data — one PartData per part index (0=1Part … 3=4Part).
-     * We use ArrayList<EffectData> and LinkedHashMap<String,AttributeData> so order is stable.
+     * We use ArrayList for both so order is stable and duplicates are allowed.
      */
     private final List<EffectData>[]              partEffects;
-    private final Map<String, AttributeData>[]    partAttributes;
+    private final List<AttributeData>[]           partAttributes;
 
     // ──── UI State ───────────────────────────────────────────────────────
     private int activeTab = 0;  // 0 = 1Part, 1 = 2Part, …
@@ -123,11 +123,11 @@ public class SetEditorScreen extends Screen {
         this.setId        = setId;
         this.displayName  = displayName;
         this.partEffects    = new ArrayList[PARTS];
-        this.partAttributes = new LinkedHashMap[PARTS];
+        this.partAttributes = new ArrayList[PARTS];
         this.editorData = null;
         for (int i = 0; i < PARTS; i++) {
             partEffects[i]    = new ArrayList<>();
-            partAttributes[i] = new LinkedHashMap<>();
+            partAttributes[i] = new ArrayList<>();
         }
     }
 
@@ -143,11 +143,11 @@ public class SetEditorScreen extends Screen {
         this.setId        = setId;
         this.displayName  = existing.getDisplayName() != null ? existing.getDisplayName() : setId;
         this.partEffects    = new ArrayList[PARTS];
-        this.partAttributes = new LinkedHashMap[PARTS];
+        this.partAttributes = new ArrayList[PARTS];
         this.editorData = null;
         for (int i = 0; i < PARTS; i++) {
             partEffects[i]    = new ArrayList<>();
-            partAttributes[i] = new LinkedHashMap<>();
+            partAttributes[i] = new ArrayList<>();
         }
 
         // Load existing data into working copies
@@ -160,7 +160,7 @@ public class SetEditorScreen extends Screen {
                         partEffects[i].addAll(pd.getEffects());
                     }
                     if (pd.getAttributes() != null) {
-                        partAttributes[i].putAll(pd.getAttributes());
+                        partAttributes[i].addAll(pd.getAttributes());
                     }
                 }
             }
@@ -194,11 +194,11 @@ public class SetEditorScreen extends Screen {
                 : editorData.getDisplayName();
 
         this.partEffects    = new ArrayList[PARTS];
-        this.partAttributes = new LinkedHashMap[PARTS];
+        this.partAttributes = new ArrayList[PARTS];
         this.editorData = editorData;
         for (int i = 0; i < PARTS; i++) {
             partEffects[i]    = new ArrayList<>();
-            partAttributes[i] = new LinkedHashMap<>();
+            partAttributes[i] = new ArrayList<>();
         }
 
         // Transfer effects and attributes from SetEditorData → internal structures
@@ -216,9 +216,10 @@ public class SetEditorScreen extends Screen {
 
             for (SetEditorData.AttributeEntry ae : config.getAttributes()) {
                 AttributeData ad = new AttributeData();
+                ad.setAttribute(ae.getAttributeId());
                 ad.setValue(ae.getValue());
                 ad.setModifier(ae.getOperation());
-                partAttributes[i].put(ae.getAttributeId(), ad);
+                partAttributes[i].add(ad);
             }
         }
     }
@@ -356,11 +357,10 @@ public class SetEditorScreen extends Screen {
 
     private void startInlineEditAttrValue(int index, int colX, int colW) {
         cancelInlineEdit();
-        List<Map.Entry<String, AttributeData>> entries =
-                new ArrayList<>(partAttributes[activeTab].entrySet());
-        if (index < 0 || index >= entries.size()) return;
+        List<AttributeData> attrs = partAttributes[activeTab];
+        if (index < 0 || index >= attrs.size()) return;
 
-        AttributeData ad = entries.get(index).getValue();
+        AttributeData ad = attrs.get(index);
         inlineEditTarget = InlineEditTarget.ATTR_VALUE;
         inlineEditIndex = index;
         String sign = ad.getValue() >= 0 ? "+" : "";
@@ -387,11 +387,10 @@ public class SetEditorScreen extends Screen {
 
     private void startInlineEditAttrModifier(int index, int colX, int colW) {
         cancelInlineEdit();
-        List<Map.Entry<String, AttributeData>> entries =
-                new ArrayList<>(partAttributes[activeTab].entrySet());
-        if (index < 0 || index >= entries.size()) return;
+        List<AttributeData> attrs = partAttributes[activeTab];
+        if (index < 0 || index >= attrs.size()) return;
 
-        AttributeData ad = entries.get(index).getValue();
+        AttributeData ad = attrs.get(index);
         String mod = ad.getModifier() == null ? "addition" : ad.getModifier();
         inlineEditTarget = InlineEditTarget.ATTR_MODIFIER;
         inlineEditIndex = index;
@@ -433,10 +432,9 @@ public class SetEditorScreen extends Screen {
                 case ATTR_VALUE -> {
                     try {
                         double val = Double.parseDouble(text);
-                        List<Map.Entry<String, AttributeData>> entries =
-                                new ArrayList<>(partAttributes[activeTab].entrySet());
-                        if (inlineEditIndex < entries.size()) {
-                            entries.get(inlineEditIndex).getValue().setValue(val);
+                        List<AttributeData> attrs = partAttributes[activeTab];
+                        if (inlineEditIndex < attrs.size()) {
+                            attrs.get(inlineEditIndex).setValue(val);
                             setStatus("\u2714 Value \u2192 " + val, false);
                         }
                     } catch (NumberFormatException e) {
@@ -460,11 +458,10 @@ public class SetEditorScreen extends Screen {
     }
 
     private void cycleAttributeModifier(int index) {
-        List<Map.Entry<String, AttributeData>> entries =
-                new ArrayList<>(partAttributes[activeTab].entrySet());
-        if (index < 0 || index >= entries.size()) return;
+        List<AttributeData> attrs = partAttributes[activeTab];
+        if (index < 0 || index >= attrs.size()) return;
 
-        AttributeData ad = entries.get(index).getValue();
+        AttributeData ad = attrs.get(index);
         String current = ad.getModifier() == null ? "addition" : ad.getModifier().toLowerCase();
         String next = switch (current) {
             case "addition" -> "multiply_base";
@@ -609,10 +606,9 @@ public class SetEditorScreen extends Screen {
 
         // ── Right half: for ATTR_MODIFIER draw clickable box ──
         if (inlineEditTarget == InlineEditTarget.ATTR_MODIFIER) {
-            List<Map.Entry<String, AttributeData>> entries =
-                    new ArrayList<>(partAttributes[activeTab].entrySet());
-            if (inlineEditIndex < entries.size()) {
-                AttributeData ad = entries.get(inlineEditIndex).getValue();
+            List<AttributeData> attrs = partAttributes[activeTab];
+            if (inlineEditIndex < attrs.size()) {
+                AttributeData ad = attrs.get(inlineEditIndex);
                 String currentMod = ad.getModifier() == null ? "add" : ad.getModifier();
 
                 int boxX = editBoxX;
@@ -633,11 +629,10 @@ public class SetEditorScreen extends Screen {
 
         // ── Live preview line below overlay for ATTR_VALUE edits ──
         if (inlineEditTarget == InlineEditTarget.ATTR_VALUE && inlineEditBox != null) {
-            List<Map.Entry<String, AttributeData>> entries =
-                    new ArrayList<>(partAttributes[activeTab].entrySet());
-            if (inlineEditIndex < entries.size()) {
-                String attrId = entries.get(inlineEditIndex).getKey();
-                AttributeData ad = entries.get(inlineEditIndex).getValue();
+            List<AttributeData> attrs = partAttributes[activeTab];
+            if (inlineEditIndex < attrs.size()) {
+                AttributeData ad = attrs.get(inlineEditIndex);
+                String attrId = ad.getAttribute();
                 String operation = ad.getModifier() != null ? ad.getModifier() : "addition";
 
                 // Parse the current EditBox value for live preview
@@ -673,11 +668,10 @@ public class SetEditorScreen extends Screen {
 
         // ── Live preview for ATTR_MODIFIER edits ──
         if (inlineEditTarget == InlineEditTarget.ATTR_MODIFIER) {
-            List<Map.Entry<String, AttributeData>> entries =
-                    new ArrayList<>(partAttributes[activeTab].entrySet());
-            if (inlineEditIndex < entries.size()) {
-                String attrId = entries.get(inlineEditIndex).getKey();
-                AttributeData ad = entries.get(inlineEditIndex).getValue();
+            List<AttributeData> attrs = partAttributes[activeTab];
+            if (inlineEditIndex < attrs.size()) {
+                AttributeData ad = attrs.get(inlineEditIndex);
+                String attrId = ad.getAttribute();
                 String operation = ad.getModifier() != null ? ad.getModifier() : "addition";
 
                 String preview = AttributePreviewHelper.getPreviewText(attrId, ad.getValue(), operation);
@@ -734,8 +728,7 @@ public class SetEditorScreen extends Screen {
     }
 
     private void renderAttributeList(GuiGraphics g, int mouseX, int mouseY) {
-        Map<String, AttributeData> attrs = partAttributes[activeTab];
-        List<Map.Entry<String, AttributeData>> entries = new ArrayList<>(attrs.entrySet());
+        List<AttributeData> entries = partAttributes[activeTab];
         int lx = rightPanelX + PADDING;
         int ly = panelListTop;
         int lw = rightPanelW - 2 * PADDING;
@@ -757,9 +750,8 @@ public class SetEditorScreen extends Screen {
             int visEnd = Math.min(entries.size(), attributeScrollOffset + maxAttrVisible);
             for (int i = attributeScrollOffset; i < visEnd; i++) {
                 int ay = ly + (i - attributeScrollOffset) * ITEM_HEIGHT;
-                Map.Entry<String, AttributeData> entry = entries.get(i);
-                AttributeData ad = entry.getValue();
-                String attrId = entry.getKey();
+                AttributeData ad = entries.get(i);
+                String attrId = ad.getAttribute();
                 String operation = ad.getModifier() != null ? ad.getModifier() : "addition";
 
                 boolean isHovered = mouseX >= lx && mouseX <= lx + lw
@@ -815,8 +807,7 @@ public class SetEditorScreen extends Screen {
         // ── Formula tooltip when hovering a percent modifier ──
         int tooltipIndex = hoveredIndex >= 0 ? hoveredIndex : selectedAttributeIndex;
         if (tooltipIndex >= 0 && tooltipIndex < entries.size()) {
-            Map.Entry<String, AttributeData> entry = entries.get(tooltipIndex);
-            AttributeData ad = entry.getValue();
+            AttributeData ad = entries.get(tooltipIndex);
             String operation = ad.getModifier() != null ? ad.getModifier() : "addition";
             String formula = AttributePreviewHelper.getFormulaText(ad.getValue(), operation);
 
@@ -904,10 +895,9 @@ public class SetEditorScreen extends Screen {
         int rw = rightPanelW - 2 * PADDING;
         if (mouseX >= rx && mouseX <= rx + rw
                 && mouseY >= panelListTop && mouseY <= panelListTop + panelListH) {
-            List<Map.Entry<String, AttributeData>> entries =
-                    new ArrayList<>(partAttributes[activeTab].entrySet());
+            List<AttributeData> attrs = partAttributes[activeTab];
             int idx = (int) ((mouseY - panelListTop) / ITEM_HEIGHT) + attributeScrollOffset;
-            if (idx >= 0 && idx < entries.size()) {
+            if (idx >= 0 && idx < attrs.size()) {
                 int valColX = rx + attrNameColW;
                 int modColX = rx + attrNameColW + attrValColW;
 
@@ -944,11 +934,9 @@ public class SetEditorScreen extends Screen {
         int rw = rightPanelW - 2 * PADDING;
         if (mouseX >= rx && mouseX <= rx + rw
                 && mouseY >= panelListTop && mouseY <= panelListTop + panelListH) {
-            List<Map.Entry<String, AttributeData>> entries =
-                    new ArrayList<>(partAttributes[activeTab].entrySet());
             if (scrollY > 0) attributeScrollOffset = Math.max(0, attributeScrollOffset - 1);
             else attributeScrollOffset = Math.min(
-                    Math.max(0, entries.size() - maxAttrVisible),
+                    Math.max(0, partAttributes[activeTab].size() - maxAttrVisible),
                     attributeScrollOffset + 1);
             return true;
         }
@@ -1039,9 +1027,10 @@ public class SetEditorScreen extends Screen {
     private void openAttributeValuePopup(String attrId) {
         this.minecraft.setScreen(new AttributeValueScreen(this, attrId, (value, modifier) -> {
             AttributeData ad = new AttributeData();
+            ad.setAttribute(attrId);
             ad.setValue(value);
             ad.setModifier(modifier);
-            partAttributes[activeTab].put(attrId, ad);
+            partAttributes[activeTab].add(ad);
             setStatus("Attribute added!", false);
         }));
     }
@@ -1091,11 +1080,12 @@ public class SetEditorScreen extends Screen {
         }
 
         // Deep-copy attributes
-        for (Map.Entry<String, AttributeData> entry : partAttributes[source].entrySet()) {
+        for (AttributeData src : partAttributes[source]) {
             AttributeData ad = new AttributeData();
-            ad.setValue(entry.getValue().getValue());
-            ad.setModifier(entry.getValue().getModifier());
-            partAttributes[target].put(entry.getKey(), ad);
+            ad.setAttribute(src.getAttribute());
+            ad.setValue(src.getValue());
+            ad.setModifier(src.getModifier());
+            partAttributes[target].add(ad);
         }
 
         // Reset selection
@@ -1121,9 +1111,8 @@ public class SetEditorScreen extends Screen {
     }
 
     private void removeSelectedAttribute() {
-        List<String> keys = new ArrayList<>(partAttributes[activeTab].keySet());
-        if (selectedAttributeIndex >= 0 && selectedAttributeIndex < keys.size()) {
-            partAttributes[activeTab].remove(keys.get(selectedAttributeIndex));
+        if (selectedAttributeIndex >= 0 && selectedAttributeIndex < partAttributes[activeTab].size()) {
+            partAttributes[activeTab].remove(selectedAttributeIndex);
             selectedAttributeIndex = -1;
             setStatus("Attribute removed.", false);
         }
@@ -1140,11 +1129,11 @@ public class SetEditorScreen extends Screen {
         Map<String, PartData> partsMap = new LinkedHashMap<>();
         for (int i = 0; i < PARTS; i++) {
             List<EffectData> effects = partEffects[i];
-            Map<String, AttributeData> attrs = partAttributes[i];
+            List<AttributeData> attrs = partAttributes[i];
             if (!effects.isEmpty() || !attrs.isEmpty()) {
                 PartData pd = new PartData();
                 pd.setEffects(new ArrayList<>(effects));
-                pd.setAttributes(new LinkedHashMap<>(attrs));
+                pd.setAttributes(new ArrayList<>(attrs));
                 partsMap.put((i + 1) + "Part", pd);
             }
         }

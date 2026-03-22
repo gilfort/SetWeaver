@@ -683,9 +683,8 @@ public class SetsManagerScreen extends Screen {
 
             // Attributes — Icon (▸) in Grün, Name+Wert in Schwarz
             if (partData.getAttributes() != null && !partData.getAttributes().isEmpty()) {
-                for (Map.Entry<String, ArmorSetData.AttributeData> attr : partData.getAttributes().entrySet()) {
-                    String attrName = resolveAttributeName(attr.getKey());
-                    ArmorSetData.AttributeData attrData = attr.getValue();
+                for (ArmorSetData.AttributeData attrData : partData.getAttributes()) {
+                    String attrName = resolveAttributeName(attrData.getAttribute());
                     String valueStr = formatAttributeValue(attrData);
                     lines.add(DetailLine.indented("\u25B8 " + attrName + " " + valueStr, COLOR_ATTRIBUTE));
                 }

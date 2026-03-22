@@ -308,12 +308,12 @@ public class SetEditorData {
 
                 // Load attributes
                 if (pd.getAttributes() != null) {
-                    for (Map.Entry<String, ArmorSetData.AttributeData> ae : pd.getAttributes().entrySet()) {
+                    for (ArmorSetData.AttributeData ae : pd.getAttributes()) {
                         config.getAttributes().add(
                                 new AttributeEntry(
-                                        ae.getKey(),
-                                        ae.getValue().getModifier(),
-                                        ae.getValue().getValue()));
+                                        ae.getAttribute(),
+                                        ae.getModifier(),
+                                        ae.getValue()));
                     }
                 }
             }
@@ -365,14 +365,15 @@ public class SetEditorData {
 
             // Convert attributes
             if (!config.getAttributes().isEmpty()) {
-                Map<String, ArmorSetData.AttributeData> attrMap = new LinkedHashMap<>();
+                List<ArmorSetData.AttributeData> attrList = new ArrayList<>();
                 for (AttributeEntry ae : config.getAttributes()) {
                     ArmorSetData.AttributeData ad = new ArmorSetData.AttributeData();
+                    ad.setAttribute(ae.getAttributeId());
                     ad.setValue(ae.getValue());
                     ad.setModifier(ae.getOperation());
-                    attrMap.put(ae.getAttributeId(), ad);
+                    attrList.add(ad);
                 }
-                pd.setAttributes(attrMap);
+                pd.setAttributes(attrList);
             }
 
             String partKey = (i + 1) + "Part"; // 1Part, 2Part, 3Part, 4Part

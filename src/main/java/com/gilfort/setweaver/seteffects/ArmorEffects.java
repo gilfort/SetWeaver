@@ -153,9 +153,10 @@ public class ArmorEffects {
             return;
         }
 
-        for (Map.Entry<String, ArmorSetData.AttributeData> entry : partData.getAttributes().entrySet()) {
-            String attributeName = entry.getKey();
-            ArmorSetData.AttributeData value = entry.getValue();
+        for (int i = 0; i < partData.getAttributes().size(); i++) {
+            ArmorSetData.AttributeData attrData = partData.getAttributes().get(i);
+            String attributeName = attrData.getAttribute();
+            if (attributeName == null) continue;
 
             Holder.Reference<Attribute> attributeHolder = getAttributeHolder(attributeName);
             if (attributeHolder == null) {
@@ -163,7 +164,7 @@ public class ArmorEffects {
             }
 
             AttributeModifier.Operation operation;
-            switch (value.getModifier().toLowerCase()) {
+            switch (attrData.getModifier().toLowerCase()) {
                 case "addition":
                     operation = AttributeModifier.Operation.ADD_VALUE;
                     break;
@@ -184,14 +185,15 @@ public class ArmorEffects {
                 continue;
             }
 
-            ResourceLocation modifierId = makeModifierId(attributeName, value.getModifier().toLowerCase(), tagString);
+            // Index suffix ensures unique IDs when the same attribute appears multiple times
+            ResourceLocation modifierId = makeModifierId(attributeName, attrData.getModifier().toLowerCase() + "_" + i, tagString);
             if (modifierId == null) {
                 continue;
             }
 
             AttributeModifier modifier = new AttributeModifier(
                     modifierId,
-                    value.getValue(),
+                    attrData.getValue(),
                     operation
             );
 
