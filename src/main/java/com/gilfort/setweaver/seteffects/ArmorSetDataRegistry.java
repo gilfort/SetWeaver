@@ -1,11 +1,15 @@
 package com.gilfort.setweaver.seteffects;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.reflect.TypeToken;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 
+import java.lang.reflect.Type;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -174,5 +178,30 @@ public class ArmorSetDataRegistry {
 
     private static String makeKey(String role, int level, String tag) {
         return role + ":" + level + ":" + tag;
+    }
+
+    // ─── Serialization for network sync ──────────────────────────────────
+
+    private static final Gson GSON = new GsonBuilder().create();
+    private static final Type DATA_MAP_TYPE = new TypeToken<Map<String, ArmorSetData>>() {}.getType();
+
+    /**
+     * Serializes the entire registry to a JSON string for network transmission.
+     * Called on the server to build the {@link com.gilfort.setweaver.network.RegistrySyncPayload}.
+     */
+    public static String serializeToJson() {
+        return GSON.toJson(DATA_MAP);
+    }
+
+    /**
+     * Replaces the entire registry contents from a JSON string received from the server.
+     * Called on the client when a {@link com.gilfort.setweaver.network.RegistrySyncPayload} arrives.
+     */
+    public static void deserializeFromJson(String json) {
+        DATA_MAP.clear();
+        Map<String, ArmorSetData> incoming = GSON.fromJson(json, DATA_MAP_TYPE);
+        if (incoming != null) {
+            DATA_MAP.putAll(incoming);
+        }
     }
 }

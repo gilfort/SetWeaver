@@ -1,6 +1,6 @@
 package com.gilfort.setweaver.client;
 
-import com.gilfort.setweaver.component.ComponentRegistry;
+import com.gilfort.setweaver.network.ClientPlayerDataCache;
 import com.gilfort.setweaver.seteffects.ArmorSetData;
 import com.gilfort.setweaver.seteffects.ArmorSetDataRegistry;
 import net.minecraft.ChatFormatting;
@@ -63,7 +63,6 @@ public class ArmorSetTooltipHandler {
      * Register BOTH event listeners on the NeoForge event bus:
      * <ol>
      *   <li>{@link ItemTooltipEvent} — renders the tooltip content</li>
-     *   <li>{@link InputEvent.MouseScrollingEvent} — handles SHIFT+scroll pagination</li>
      * </ol>
      * Call from {@code ClientModEvents.onClientSetup()}.
      */
@@ -146,35 +145,18 @@ public static void onMouseScroll(ScreenEvent.MouseScrolled.Pre event) {
             return;
         }
 
-        // --- Determine role and Level ---
+        // --- Determine role and Level from server-synced cache ---
         Player player = Minecraft.getInstance().player;
         if (player == null) return;
 
-        var roleType = ComponentRegistry.ROLE.value();
-        var LevelType = ComponentRegistry.LEVEL.value();
-
-        String role = stack.has(roleType) ? stack.get(roleType) : null;
-        Integer LevelObj = stack.has(LevelType) ? stack.get(LevelType) : null;
-
-        // Fallback: read from currently worn armor stacks
-        if (role == null || LevelObj == null) {
-            for (ItemStack worn : player.getArmorSlots()) {
-                if (worn.has(roleType) && worn.has(LevelType)) {
-                    role = worn.get(roleType);
-                    LevelObj = worn.get(LevelType);
-                    break;
-                }
-            }
-        }
-
-        // Still no data → generic hint
-        if (role == null || LevelObj == null) {
+        if (!ClientPlayerDataCache.hasData()) {
             event.getToolTip().add(Component.literal("[Set Bonus available — equip to see details]")
                     .withStyle(ChatFormatting.GRAY));
             return;
         }
 
-        int Level = LevelObj;
+        String role = ClientPlayerDataCache.getRole();
+        int Level = ClientPlayerDataCache.getYear();
 
         // --- Lookup registered tags for this role/Level ---
         Set<String> registeredTags = ArmorSetDataRegistry.getRegisteredTags(role.toLowerCase(), Level);

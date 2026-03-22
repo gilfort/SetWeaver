@@ -14,7 +14,7 @@ public class PlayerDataHelper {
         return player.getData(SetWeaverPlayerData.PLAYER_DATA.get());
     }
 
-    // Speichert den role-Tag
+    // Saves the role tag for the given player
     public static void setRole(ServerPlayer player, String role) {
         CompoundTag persistentData = getTag(player);
         persistentData.putString(ROLE_TAG, role);
@@ -22,20 +22,20 @@ public class PlayerDataHelper {
         SetWeaver.LOGGER.info("Role set to {} for {}", role, player.getName().getString());
     }
 
-    // Liest den Role-Tag
+    // Reads the role tag for the given player
     public static String getRole(ServerPlayer player) {
         return getTag(player).getString(ROLE_TAG);
     }
 
-    // Speichert den Level-Tag
+    // Saves the year (level) tag for the given player
     public static void setLevel(ServerPlayer player, int Level) {
         CompoundTag tag = getTag(player);
         tag.putInt(LEVEL_TAG, Level);
         player.setData(SetWeaverPlayerData.PLAYER_DATA.get(), tag);
-        SetWeaver.LOGGER.info("LevelTag set to {} for {}", Level, player.getName().getString());
+        SetWeaver.LOGGER.info("Year set to {} for {}", Level, player.getName().getString());
     }
 
-    // Liest den Level-Tag
+    // Reads the year (level) tag for the given player
     public static int getLevel(ServerPlayer player) {
         return getTag(player).getInt(LEVEL_TAG);
     }
