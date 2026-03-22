@@ -320,10 +320,10 @@ public static void onMouseScroll(ScreenEvent.MouseScrolled.Pre event) {
             event.getToolTip().add(Component.literal("[Bonus Attributes]")
                     .withStyle(ChatFormatting.AQUA));
 
-            for (Map.Entry<String, ArmorSetData.AttributeData> attr : partData.getAttributes().entrySet()) {
+            for (ArmorSetData.AttributeData attrData : partData.getAttributes()) {
                 ResourceLocation attrLoc;
                 try {
-                    attrLoc = ResourceLocation.parse(attr.getKey());
+                    attrLoc = ResourceLocation.parse(attrData.getAttribute());
                 } catch (Exception e) {
                     continue;
                 }
@@ -332,8 +332,8 @@ public static void onMouseScroll(ScreenEvent.MouseScrolled.Pre event) {
                 if (attribute == null) continue;
 
                 Component attributeName = Component.translatable(attribute.getDescriptionId());
-                double rawValue = attr.getValue().getValue();
-                String modifier = attr.getValue().getModifier();
+                double rawValue = attrData.getValue();
+                String modifier = attrData.getModifier();
 
                 String displayValue;
                 if (modifier != null && (modifier.equalsIgnoreCase("multiply")

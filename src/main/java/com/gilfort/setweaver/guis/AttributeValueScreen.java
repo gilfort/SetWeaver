@@ -19,7 +19,7 @@ public class AttributeValueScreen extends Screen {
 
     private static final int PANEL_BG     = 0xFFF5F0E0;
     private static final int PANEL_BORDER = 0xFF8B7355;
-    private static final int W = 220, H = 140;
+    private static final int W = 220, H = 170;
 
     // NeoForge 1.21.1 attribute modifier operations
     private static final List<String> MODIFIERS = List.of(
@@ -88,8 +88,32 @@ public class AttributeValueScreen extends Screen {
         // 2) Text DANACH — liegt über dem Panel, sichtbar
         int px = (this.width - W) / 2, py = (this.height - H) / 2;
         g.drawString(this.font, "Value for:", px + 8, py + 8, 0xFF000000, false);
-        g.drawString(this.font, attrId, px + 8, py + 20, 0xFF555555, false);
+        g.drawString(this.font, AttributePreviewHelper.formatAttributeShort(attrId),
+                px + 8, py + 20, 0xFF555555, false);
         g.drawString(this.font, "Modifier type:", px + 8, py + 62, 0xFF000000, false);
+
+        // 3) Live preview — updates as user types value or cycles modifier
+        String text = valueBox.getValue().trim();
+        double previewVal = 0;
+        try {
+            if (!text.isEmpty()) previewVal = Double.parseDouble(text);
+        } catch (NumberFormatException ignored) {}
+
+        String operation = MODIFIERS.get(selectedModifier);
+        String preview = AttributePreviewHelper.getPreviewText(attrId, previewVal, operation);
+        int previewColor = AttributePreviewHelper.isNegative(previewVal, operation)
+                ? 0xFFCC3333 : 0xFF226622;
+
+        // Preview label + value
+        g.drawString(this.font, "Preview:", px + 8, py + 96, 0xFF000000, false);
+        g.drawString(this.font, preview, px + 8 + this.font.width("Preview: "),
+                py + 96, previewColor, false);
+
+        // Formula for percent modifiers
+        String formula = AttributePreviewHelper.getFormulaText(previewVal, operation);
+        if (formula != null) {
+            g.drawString(this.font, formula, px + 8, py + 108, 0xFF888888, false);
+        }
     }
 
 

@@ -2,8 +2,6 @@ package com.gilfort.setweaver.guis;
 
 import com.gilfort.setweaver.seteffects.ArmorSetData;
 import com.gilfort.setweaver.seteffects.ArmorSetDataRegistry;
-import net.minecraft.resources.ResourceLocation;
-
 import java.util.*;
 
 /**
@@ -147,69 +145,15 @@ public class SetEditorData {
          * Examples:
          * <ul>
          *   <li>Max Health +4 (addition) → "+2 Hearts"</li>
-         *   <li>Movement Speed +0.2 (multiply_base) → "+20% Base Speed"</li>
-         *   <li>Armor +0.1 (multiply_total) → "+10% Total Armor"</li>
-         *   <li>Attack Damage +3 (addition) → "+3 Damage"</li>
+         *   <li>Movement Speed +0.2 (multiply_base) → "+20% Base [×1.2] Speed"</li>
+         *   <li>Armor +0.1 (multiply_total) → "+10% Total [×1.1] Armor"</li>
+         *   <li>Attack Damage +3 (addition) → "+3 Attack Damage"</li>
          * </ul>
+         *
+         * @see AttributePreviewHelper#getPreviewText(String, double, String)
          */
         public String getPreview() {
-            String attrShort = formatAttributeShort(attributeId);
-
-            return switch (operation) {
-                case "multiply_base" -> {
-                    String sign = value >= 0 ? "+" : "";
-                    yield sign + Math.round(value * 100) + "% Base " + attrShort;
-                }
-                case "multiply_total" -> {
-                    String sign = value >= 0 ? "+" : "";
-                    yield sign + Math.round(value * 100) + "% Total " + attrShort;
-                }
-                default -> { // "addition"
-                    // Special case: Max Health displays in Hearts (1 Heart = 2 HP)
-                    if (attributeId.contains("max_health")) {
-                        double hearts = value / 2.0;
-                        String sign = hearts >= 0 ? "+" : "";
-                        // Format: avoid .0 for whole numbers
-                        String heartsStr = (hearts == (int) hearts)
-                                ? String.valueOf((int) hearts)
-                                : String.format("%.1f", hearts);
-                        yield sign + heartsStr + " Heart" + (Math.abs(hearts) != 1 ? "s" : "");
-                    }
-                    String sign = value >= 0 ? "+" : "";
-                    // Format: avoid .0 for whole numbers
-                    String valStr = (value == (int) value)
-                            ? String.valueOf((int) value)
-                            : String.format("%.2f", value);
-                    yield sign + valStr + " " + attrShort;
-                }
-            };
-        }
-
-        /**
-         * Extracts a short readable name from an attribute ResourceLocation.
-         * E.g. "minecraft:generic.max_health" → "Max Health"
-         */
-        private static String formatAttributeShort(String attrId) {
-            try {
-                String path = ResourceLocation.parse(attrId).getPath();
-                // Remove common prefixes
-                path = path.replace("generic.", "")
-                        .replace("player.", "")
-                        .replace("zombie.", "");
-                // Convert snake_case to Title Case
-                String[] words = path.split("_");
-                StringBuilder sb = new StringBuilder();
-                for (String word : words) {
-                    if (!word.isEmpty()) {
-                        if (sb.length() > 0) sb.append(" ");
-                        sb.append(Character.toUpperCase(word.charAt(0)));
-                        if (word.length() > 1) sb.append(word.substring(1));
-                    }
-                }
-                return sb.toString();
-            } catch (Exception e) {
-                return attrId;
-            }
+            return AttributePreviewHelper.getPreviewText(attributeId, value, operation);
         }
     }
 
@@ -364,12 +308,12 @@ public class SetEditorData {
 
                 // Load attributes
                 if (pd.getAttributes() != null) {
-                    for (Map.Entry<String, ArmorSetData.AttributeData> ae : pd.getAttributes().entrySet()) {
+                    for (ArmorSetData.AttributeData ae : pd.getAttributes()) {
                         config.getAttributes().add(
                                 new AttributeEntry(
-                                        ae.getKey(),
-                                        ae.getValue().getModifier(),
-                                        ae.getValue().getValue()));
+                                        ae.getAttribute(),
+                                        ae.getModifier(),
+                                        ae.getValue()));
                     }
                 }
             }
@@ -421,14 +365,15 @@ public class SetEditorData {
 
             // Convert attributes
             if (!config.getAttributes().isEmpty()) {
-                Map<String, ArmorSetData.AttributeData> attrMap = new LinkedHashMap<>();
+                List<ArmorSetData.AttributeData> attrList = new ArrayList<>();
                 for (AttributeEntry ae : config.getAttributes()) {
                     ArmorSetData.AttributeData ad = new ArmorSetData.AttributeData();
+                    ad.setAttribute(ae.getAttributeId());
                     ad.setValue(ae.getValue());
                     ad.setModifier(ae.getOperation());
-                    attrMap.put(ae.getAttributeId(), ad);
+                    attrList.add(ad);
                 }
-                pd.setAttributes(attrMap);
+                pd.setAttributes(attrList);
             }
 
             String partKey = (i + 1) + "Part"; // 1Part, 2Part, 3Part, 4Part

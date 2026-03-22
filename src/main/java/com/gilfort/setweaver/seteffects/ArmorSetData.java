@@ -28,7 +28,7 @@ public class ArmorSetData {
     public static class PartData {
         // Gson wird diese Felder per Namen matchen:
         private List<EffectData> Effects;
-        private Map<String, AttributeData> Attributes;
+        private List<AttributeData> Attributes;
 
         // Getter und Setter (oder public Felder, je nachdem was du bevorzugst)
         public List<EffectData> getEffects() {
@@ -39,11 +39,11 @@ public class ArmorSetData {
             Effects = effects;
         }
 
-        public Map<String, AttributeData> getAttributes() {
+        public List<AttributeData> getAttributes() {
             return Attributes;
         }
 
-        public void setAttributes(Map<String, AttributeData> attributes) {
+        public void setAttributes(List<AttributeData> attributes) {
             Attributes = attributes;
         }
     }
@@ -70,9 +70,12 @@ public class ArmorSetData {
     }
 
     public static class AttributeData {
+        private String attribute;  // e.g. "minecraft:generic.max_health"
         private double value;
         private String modifier;
 
+        public String getAttribute() { return attribute; }
+        public void setAttribute(String attribute) { this.attribute = attribute; }
         public double getValue() { return value; }
         public String getModifier() { return modifier; }
         public void setValue(double value) { this.value = value; }

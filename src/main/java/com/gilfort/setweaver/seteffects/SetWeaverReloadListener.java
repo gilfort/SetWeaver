@@ -43,7 +43,46 @@ public class SetWeaverReloadListener implements PreparableReloadListener {
             "setweaver" + File.separator + "set_armor"
     );
 
-    private static final Gson GSON = new Gson();
+    /**
+     * Custom Gson instance with backward-compatible deserializer for PartData.
+     * Handles both old Map format and new List format for Attributes.
+     *
+     * <p>Old format: {@code "Attributes": {"minecraft:generic.max_health": {"value": 4, "modifier": "addition"}}}</p>
+     * <p>New format: {@code "Attributes": [{"attribute": "minecraft:generic.max_health", "value": 4, "modifier": "addition"}]}</p>
+     */
+    private static final Gson GSON = new GsonBuilder()
+            .registerTypeAdapter(ArmorSetData.PartData.class, (JsonDeserializer<ArmorSetData.PartData>) (json, typeOfT, context) -> {
+                JsonObject obj = json.getAsJsonObject();
+                ArmorSetData.PartData pd = new ArmorSetData.PartData();
+
+                // Deserialize Effects normally
+                if (obj.has("Effects") && obj.get("Effects").isJsonArray()) {
+                    java.lang.reflect.Type effectListType = new com.google.gson.reflect.TypeToken<List<ArmorSetData.EffectData>>(){}.getType();
+                    pd.setEffects(context.deserialize(obj.get("Effects"), effectListType));
+                }
+
+                // Deserialize Attributes — handle both Map (old) and List (new)
+                if (obj.has("Attributes")) {
+                    JsonElement attrElem = obj.get("Attributes");
+                    if (attrElem.isJsonArray()) {
+                        // New List format
+                        java.lang.reflect.Type attrListType = new com.google.gson.reflect.TypeToken<List<ArmorSetData.AttributeData>>(){}.getType();
+                        pd.setAttributes(context.deserialize(attrElem, attrListType));
+                    } else if (attrElem.isJsonObject()) {
+                        // Old Map format: convert to List
+                        List<ArmorSetData.AttributeData> attrList = new ArrayList<>();
+                        for (Map.Entry<String, JsonElement> entry : attrElem.getAsJsonObject().entrySet()) {
+                            ArmorSetData.AttributeData ad = context.deserialize(entry.getValue(), ArmorSetData.AttributeData.class);
+                            ad.setAttribute(entry.getKey());
+                            attrList.add(ad);
+                        }
+                        pd.setAttributes(attrList);
+                    }
+                }
+
+                return pd;
+            })
+            .create();
 
     /**
      * Called by vanilla/NeoForge when {@code /reload} is executed.
@@ -410,14 +449,14 @@ public class SetWeaverReloadListener implements PreparableReloadListener {
 
                 // Validate attributes
                 if (pd.getAttributes() != null) {
-                    for (Map.Entry<String, ArmorSetData.AttributeData> ae : pd.getAttributes().entrySet()) {
-                        ResourceLocation aLoc = tryMakeResourceLocation(ae.getKey());
+                    for (ArmorSetData.AttributeData ae : pd.getAttributes()) {
+                        ResourceLocation aLoc = tryMakeResourceLocation(ae.getAttribute());
                         Attribute attr = aLoc == null ? null : BuiltInRegistries.ATTRIBUTE.get(aLoc);
                         if (attr == null) {
-                            warnings.add(partKey + ": unknown attribute '" + ae.getKey() + "'");
+                            warnings.add(partKey + ": unknown attribute '" + ae.getAttribute() + "'");
                         }
                         // Check modifier type
-                        String mod = ae.getValue().getModifier();
+                        String mod = ae.getModifier();
                         if (mod == null || (!mod.equalsIgnoreCase("addition")
                                 && !mod.equalsIgnoreCase("multiply_base")
                                 && !mod.equalsIgnoreCase("multiply")
@@ -607,14 +646,14 @@ public class SetWeaverReloadListener implements PreparableReloadListener {
 
             // Validate attributes
             if (partData.getAttributes() != null) {
-                var attrIt = partData.getAttributes().entrySet().iterator();
+                var attrIt = partData.getAttributes().iterator();
                 while (attrIt.hasNext()) {
-                    var entry = attrIt.next();
-                    ResourceLocation aid = tryMakeResourceLocation(entry.getKey());
+                    var ad = attrIt.next();
+                    ResourceLocation aid = tryMakeResourceLocation(ad.getAttribute());
                     Attribute attr = aid == null ? null : BuiltInRegistries.ATTRIBUTE.get(aid);
                     if (attr == null) {
                         SetWeaver.LOGGER.error("[SetWeaver] Unknown attribute '{}' in {} – removed",
-                                entry.getKey(), file);
+                                ad.getAttribute(), file);
                         attrIt.remove();
                     }
                 }
