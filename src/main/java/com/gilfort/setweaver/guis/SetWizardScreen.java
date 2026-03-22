@@ -412,7 +412,8 @@ public class SetWizardScreen extends Screen {
      */
     private void proceedToStep2(SetEditorData editorData) {
         assert this.minecraft != null;
-        this.minecraft.setScreen(new SetEditorScreen(this, editorData));
+        // Pass parentScreen as mainScreen so "Save & Exit" skips the wizard and goes straight to the manager.
+        this.minecraft.setScreen(new SetEditorScreen(this, parentScreen, editorData));
     }
 
     // ══════════════════════════════════════════════════════════════════

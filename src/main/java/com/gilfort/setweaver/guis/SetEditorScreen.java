@@ -73,6 +73,8 @@ public class SetEditorScreen extends Screen {
 
     // ──── Data ──────────────────────────────────────────────────────────
     private final Screen parentScreen;
+    /** The top-level manager screen — "Save & Exit" always returns here. */
+    private final Screen mainScreen;
     private final String setId;
     private final String displayName;
     private final SetEditorData editorData;
@@ -117,6 +119,7 @@ public class SetEditorScreen extends Screen {
     public SetEditorScreen(Screen parent, String setId, String displayName) {
         super(Component.literal("Edit Set: " + displayName));
         this.parentScreen = parent;
+        this.mainScreen   = parent;
         this.setId        = setId;
         this.displayName  = displayName;
         this.partEffects    = new ArrayList[PARTS];
@@ -136,6 +139,7 @@ public class SetEditorScreen extends Screen {
         super(Component.literal("Edit Set: " +
                 (existing.getDisplayName() != null ? existing.getDisplayName() : setId)));
         this.parentScreen = parent;
+        this.mainScreen   = parent;
         this.setId        = setId;
         this.displayName  = existing.getDisplayName() != null ? existing.getDisplayName() : setId;
         this.partEffects    = new ArrayList[PARTS];
@@ -171,9 +175,18 @@ public class SetEditorScreen extends Screen {
      */
     @SuppressWarnings("unchecked")
     public SetEditorScreen(Screen parent, SetEditorData editorData) {
+        this(parent, parent, editorData);
+    }
+
+    /**
+     * Wizard-mode with explicit main screen: "Save & Exit" returns to {@code mainScreen}
+     * while "Back" returns to {@code parent} (e.g. the SetWizardScreen).
+     */
+    public SetEditorScreen(Screen parent, Screen mainScreen, SetEditorData editorData) {
         super(Component.literal("Edit Set: " +
                 (editorData.getDisplayName().isBlank() ? editorData.getTag() : editorData.getDisplayName())));
         this.parentScreen = parent;
+        this.mainScreen   = mainScreen;
         // Build a setId from the tag (e.g. "zauberei:magiccloth_armor" → "zauberei__magiccloth_armor")
         this.setId       = editorData.getTag().replace(":", "__");
         this.displayName = editorData.getDisplayName().isBlank()
@@ -284,16 +297,27 @@ public class SetEditorScreen extends Screen {
                 .build());
 
 
+        // Three bottom buttons: Save | Save & Exit | Cancel
+        // Total width: 80 + 8 + 96 + 8 + 80 = 272 → centered
+        int totalBtnW = 80 + 8 + 96 + 8 + 80;
+        int btnStartX = (this.width - totalBtnW) / 2;
+
         // Save
         addRenderableWidget(Button.builder(
                         Component.literal("💾 Save"), btn -> saveToJson())
-                .bounds(this.width / 2 - 84, btnY, 80, btnH)
+                .bounds(btnStartX, btnY, 80, btnH)
                 .build());
 
-        // Cancel
+        // Save & Exit
         addRenderableWidget(Button.builder(
-                        Component.literal("Cancel"), btn -> onClose())
-                .bounds(this.width / 2 + 4, btnY, 80, btnH)
+                        Component.literal("💾 Save & Exit"), btn -> saveAndExit())
+                .bounds(btnStartX + 80 + 8, btnY, 96, btnH)
+                .build());
+
+        // Back
+        addRenderableWidget(Button.builder(
+                        Component.literal("← Back"), btn -> onClose())
+                .bounds(btnStartX + 80 + 8 + 96 + 8, btnY, 80, btnH)
                 .build());
     }
 
@@ -1051,6 +1075,12 @@ public class SetEditorScreen extends Screen {
         setStatus("Saving to server: " + relativePath, false);
     }
 
+    /** Saves the current set and returns directly to the main manager screen. */
+    private void saveAndExit() {
+        saveToJson();
+        assert this.minecraft != null;
+        this.minecraft.setScreen(mainScreen);
+    }
 
     // ════════════════════════════════════════════════════════════════════
     //  Helpers
