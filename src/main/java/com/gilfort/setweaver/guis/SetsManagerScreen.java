@@ -100,6 +100,13 @@ public class SetsManagerScreen extends Screen {
     private boolean showingValidation = false;
     private List<SetWeaverReloadListener.ValidationResult> validationResults = null;
 
+    // ─── Inline action buttons (rendered next to selected entry) ──────
+    private static final int ICON_SIZE = 10;
+    private static final int ICON_GAP = 2;
+    private int[] inlineEditBounds  = null; // {x, y, w, h}
+    private int[] inlineCopyBounds  = null;
+    private int[] inlineDeleteBounds = null;
+
     // ─── Inner types ─────────────────────────────────────────────────────
 
     /**
@@ -108,10 +115,11 @@ public class SetsManagerScreen extends Screen {
      */
     private record ListEntry(EntryType type, String tag, String scopeLabel,
                              String role, int level, ArmorSetData data) {
-        enum EntryType { TAG_HEADER, SCOPE_ENTRY }
+        enum EntryType { TAG_HEADER, SCOPE_ENTRY, SECTION_HEADER }
 
         int getColor() {
             if (type == EntryType.TAG_HEADER) return COLOR_HEADER;
+            if (type == EntryType.SECTION_HEADER) return COLOR_GRAY;
             boolean wildRole = ArmorSetDataRegistry.WILDCARD_ROLE.equals(role);
             boolean wildLevel = level == ArmorSetDataRegistry.WILDCARD_LEVEL;
             if (wildRole && wildLevel) return COLOR_UNIVERSAL;
@@ -120,8 +128,10 @@ public class SetsManagerScreen extends Screen {
         }
 
         String getDisplayText() {
+            if (type == EntryType.SECTION_HEADER) {
+                return "\u2500\u2500 " + scopeLabel + " \u2500\u2500"; // ── Not Active ──
+            }
             if (type == EntryType.TAG_HEADER) {
-                // Format tag as readable name
                 return formatTagName(tag);
             }
             return "  \u25CF " + scopeLabel; // ● bullet + scope
@@ -209,12 +219,12 @@ public class SetsManagerScreen extends Screen {
 
         buildListEntries();
 
-        // ── Buttons ──────────────────────────────────────────────────────
+        // ── Bottom Buttons (static) ─────────────────────────────────────
         int buttonW = 55;
         int buttonH = 20;
         int buttonY = margin + contentH + 4;
         int buttonSpacing = 8;
-        int totalButtonsW = buttonW * 7 + buttonSpacing * 6;
+        int totalButtonsW = buttonW * 6 + buttonSpacing * 5;
         int buttonStartX = (this.width - totalButtonsW) / 2;
 
         addRenderableWidget(Button.builder(Component.literal("Reload"), btn -> onReload())
@@ -223,14 +233,12 @@ public class SetsManagerScreen extends Screen {
                 .bounds(buttonStartX + (buttonW + buttonSpacing), buttonY, buttonW, buttonH).build());
         addRenderableWidget(Button.builder(Component.literal("Tags"), btn -> onToggleTagBrowser())
                 .bounds(buttonStartX + (buttonW + buttonSpacing) * 2, buttonY, buttonW, buttonH).build());
-        addRenderableWidget(Button.builder(Component.literal("Edit"), btn -> onEditSet())
+        addRenderableWidget(Button.builder(Component.literal("Packages"), btn -> onOpenPackages())
                 .bounds(buttonStartX + (buttonW + buttonSpacing) * 3, buttonY, buttonW, buttonH).build());
-        addRenderableWidget(Button.builder(Component.literal("Copy"), btn -> onCopySet())
-                .bounds(buttonStartX + (buttonW + buttonSpacing) * 4, buttonY, buttonW, buttonH).build());
         addRenderableWidget(Button.builder(Component.literal("Create"), btn -> onCreateSet())
+                .bounds(buttonStartX + (buttonW + buttonSpacing) * 4, buttonY, buttonW, buttonH).build());
+        addRenderableWidget(Button.builder(Component.literal("Close"), btn -> onCloseScreen())
                 .bounds(buttonStartX + (buttonW + buttonSpacing) * 5, buttonY, buttonW, buttonH).build());
-        addRenderableWidget(Button.builder(Component.literal("Close"), btn -> onClose())
-                .bounds(buttonStartX + (buttonW + buttonSpacing) * 6, buttonY, buttonW, buttonH).build());
 
 
 // ── Tag Search Box (unsichtbar bis Tag-Browser aktiv) ────────────
@@ -241,8 +249,13 @@ public class SetsManagerScreen extends Screen {
         tagSearchBox.setVisible(false);
         addRenderableWidget(tagSearchBox);
 
-// ── Tag-Daten vorladen ───────────────────────────────────────────
+// ── Tag-Daten vorladen (nur Tags mit mindestens einem Rüstungsteil) ──
         allTags = BuiltInRegistries.ITEM.getTagNames()
+                .filter(tagKey -> {
+                    var tag = BuiltInRegistries.ITEM.getOrCreateTag(tagKey);
+                    return tag.stream().anyMatch(h ->
+                            h.value() instanceof net.minecraft.world.item.ArmorItem);
+                })
                 .sorted(Comparator.comparing(t -> t.location().toString()))
                 .collect(Collectors.toCollection(ArrayList::new));
         filteredTags = new ArrayList<>(allTags);
@@ -262,8 +275,49 @@ public class SetsManagerScreen extends Screen {
 
         List<ArmorSetDataRegistry.SetEntry> allEntries = ArmorSetDataRegistry.getAllEntries();
 
-        // Group by tag, then sort entries within each group
-        Map<String, List<ArmorSetDataRegistry.SetEntry>> grouped = allEntries.stream()
+        // Separate active and inactive sets
+        List<ArmorSetDataRegistry.SetEntry> activeEntries = new ArrayList<>();
+        List<ArmorSetDataRegistry.SetEntry> inactiveEntries = new ArrayList<>();
+        for (ArmorSetDataRegistry.SetEntry entry : allEntries) {
+            if (isSetActive(entry.data())) {
+                activeEntries.add(entry);
+            } else {
+                inactiveEntries.add(entry);
+            }
+        }
+
+        // Build active entries grouped by tag
+        addGroupedEntries(activeEntries);
+
+        // Build "Not Active" section if there are inactive sets
+        if (!inactiveEntries.isEmpty()) {
+            listEntries.add(new ListEntry(
+                    ListEntry.EntryType.SECTION_HEADER, "", "Not Active", "", 0, null));
+            addGroupedEntries(inactiveEntries);
+        }
+
+        // Auto-select first scope entry
+        for (int i = 0; i < listEntries.size(); i++) {
+            if (listEntries.get(i).type() == ListEntry.EntryType.SCOPE_ENTRY) {
+                selectedIndex = i;
+                break;
+            }
+        }
+    }
+
+    /** Checks whether a set has at least one effect or attribute in any part. */
+    private static boolean isSetActive(ArmorSetData data) {
+        if (data == null || data.getParts() == null || data.getParts().isEmpty()) return false;
+        for (ArmorSetData.PartData part : data.getParts().values()) {
+            if (part.getEffects() != null && !part.getEffects().isEmpty()) return true;
+            if (part.getAttributes() != null && !part.getAttributes().isEmpty()) return true;
+        }
+        return false;
+    }
+
+    /** Groups entries by tag and adds TAG_HEADER + SCOPE_ENTRY items to listEntries. */
+    private void addGroupedEntries(List<ArmorSetDataRegistry.SetEntry> entries) {
+        Map<String, List<ArmorSetDataRegistry.SetEntry>> grouped = entries.stream()
                 .collect(Collectors.groupingBy(ArmorSetDataRegistry.SetEntry::tag,
                         LinkedHashMap::new, Collectors.toCollection(ArrayList::new)));
 
@@ -286,14 +340,6 @@ public class SetsManagerScreen extends Screen {
                 listEntries.add(new ListEntry(
                         ListEntry.EntryType.SCOPE_ENTRY, tag,
                         se.scopeLabel(), se.role(), se.level(), se.data()));
-            }
-        }
-
-        // Auto-select first scope entry
-        for (int i = 0; i < listEntries.size(); i++) {
-            if (listEntries.get(i).type() == ListEntry.EntryType.SCOPE_ENTRY) {
-                selectedIndex = i;
-                break;
             }
         }
     }
@@ -524,7 +570,12 @@ public class SetsManagerScreen extends Screen {
                 text += "...";
             }
 
-            if (entry.type() == ListEntry.EntryType.TAG_HEADER) {
+            if (entry.type() == ListEntry.EntryType.SECTION_HEADER) {
+                // Section header: grau + bold + italic
+                graphics.drawString(this.font,
+                        Component.literal(text).withStyle(s -> s.withBold(true).withItalic(true)),
+                        leftX + 3, entryY, COLOR_GRAY, false);
+            } else if (entry.type() == ListEntry.EntryType.TAG_HEADER) {
                 // Tag-Header: schwarz + bold
                 graphics.drawString(this.font,
                         Component.literal(text).withStyle(s -> s.withBold(true)),
@@ -536,6 +587,43 @@ public class SetsManagerScreen extends Screen {
                 graphics.drawString(this.font, bullet, leftX + 8, entryY, entry.getColor(), false);
                 int bulletWidth = this.font.width(bullet);
                 graphics.drawString(this.font, label, leftX + 8 + bulletWidth, entryY, COLOR_TEXT, false);
+            }
+        }
+
+        // ── Inline action icons next to selected entry ───────────────────
+        inlineEditBounds = null;
+        inlineCopyBounds = null;
+        inlineDeleteBounds = null;
+
+        if (selectedIndex >= visibleStart && selectedIndex < visibleEnd) {
+            ListEntry selEntry = listEntries.get(selectedIndex);
+            if (selEntry.type() == ListEntry.EntryType.SCOPE_ENTRY) {
+                int selY = y + (selectedIndex - visibleStart) * lineHeight;
+                int iconY = selY;
+                int iconX = leftX + leftW - 3 * (ICON_SIZE + ICON_GAP) - 6;
+
+                // ✎ Edit
+                boolean editHover = mouseX >= iconX && mouseX < iconX + ICON_SIZE
+                        && mouseY >= iconY && mouseY < iconY + ICON_SIZE;
+                graphics.drawString(this.font, "\u270E", iconX, iconY,
+                        editHover ? 0xFF00AA00 : 0xFF336633, false);
+                inlineEditBounds = new int[]{iconX, iconY, ICON_SIZE, ICON_SIZE};
+
+                // ❐ Copy
+                iconX += ICON_SIZE + ICON_GAP;
+                boolean copyHover = mouseX >= iconX && mouseX < iconX + ICON_SIZE
+                        && mouseY >= iconY && mouseY < iconY + ICON_SIZE;
+                graphics.drawString(this.font, "\u274F", iconX, iconY,
+                        copyHover ? 0xFF0055CC : 0xFF335577, false);
+                inlineCopyBounds = new int[]{iconX, iconY, ICON_SIZE, ICON_SIZE};
+
+                // ✕ Delete
+                iconX += ICON_SIZE + ICON_GAP;
+                boolean delHover = mouseX >= iconX && mouseX < iconX + ICON_SIZE
+                        && mouseY >= iconY && mouseY < iconY + ICON_SIZE;
+                graphics.drawString(this.font, "\u2716", iconX, iconY,
+                        delHover ? 0xFFFF0000 : 0xFF773333, false);
+                inlineDeleteBounds = new int[]{iconX, iconY, ICON_SIZE, ICON_SIZE};
             }
         }
 
@@ -800,6 +888,20 @@ public class SetsManagerScreen extends Screen {
             return false;
         }
 
+        // Inline action icons (Edit / Copy / Delete) — check before general click
+        if (inlineEditBounds != null && hitTest(inlineEditBounds, mouseX, mouseY)) {
+            onEditSet();
+            return true;
+        }
+        if (inlineCopyBounds != null && hitTest(inlineCopyBounds, mouseX, mouseY)) {
+            onCopySet();
+            return true;
+        }
+        if (inlineDeleteBounds != null && hitTest(inlineDeleteBounds, mouseX, mouseY)) {
+            onDeleteSet();
+            return true;
+        }
+
         // Click on left page → select entry
         if (mouseX >= leftX && mouseX <= leftX + leftW
                 && mouseY >= leftY && mouseY <= leftY + leftH) {
@@ -886,7 +988,7 @@ public class SetsManagerScreen extends Screen {
 
         // ESC to close
         if (keyCode == 256) {
-            onClose();
+            onCloseScreen();
             return true;
         }
 
@@ -970,6 +1072,47 @@ public class SetsManagerScreen extends Screen {
         validationResults = SetWeaverReloadListener.validateAllFiles();
         showingValidation = true;
         rightScrollOffset = 0;
+    }
+
+    private void onOpenPackages() {
+        assert this.minecraft != null;
+        this.minecraft.setScreen(new PackageEditorScreen(this));
+    }
+
+    /** Deletes the currently selected set's JSON file and reloads. */
+    private void onDeleteSet() {
+        if (selectedIndex < 0 || selectedIndex >= listEntries.size()) return;
+        ListEntry entry = listEntries.get(selectedIndex);
+        if (entry.type() != ListEntry.EntryType.SCOPE_ENTRY || entry.data() == null) return;
+
+        // Build the file path from scope data
+        SetEditorData tmpData = new SetEditorData();
+        tmpData.loadFrom(entry.tag(), entry.role(), entry.level(), entry.data());
+        String relPath = tmpData.resolveFilePath();
+
+        java.nio.file.Path configDir = net.neoforged.fml.loading.FMLPaths.CONFIGDIR.get()
+                .resolve("setweaver").resolve("set_armor");
+        java.nio.file.Path filePath = configDir.resolve(relPath);
+
+        try {
+            if (java.nio.file.Files.deleteIfExists(filePath)) {
+                SetWeaverReloadListener.loadAllEffects();
+                buildListEntries();
+            }
+        } catch (Exception e) {
+            com.gilfort.setweaver.SetWeaver.LOGGER.error("Failed to delete set file: {}", filePath, e);
+        }
+    }
+
+    private void onCloseScreen() {
+        assert this.minecraft != null;
+        this.minecraft.setScreen(null);
+    }
+
+    /** Hit-test helper for inline icon bounds {x, y, w, h}. */
+    private static boolean hitTest(int[] bounds, double mx, double my) {
+        return mx >= bounds[0] && mx < bounds[0] + bounds[2]
+                && my >= bounds[1] && my < bounds[1] + bounds[3];
     }
 
     // ─── Helper methods ──────────────────────────────────────────────────

@@ -341,17 +341,22 @@ public static void onMouseScroll(ScreenEvent.MouseScrolled.Pre event) {
      */
     private static void renderAttributesWithPackages(ItemTooltipEvent event,
                                                      List<ArmorSetData.AttributeData> attributes) {
-        // Group attributes by package (null key = no package)
+        // Collect all present attribute IDs for context-aware package matching
+        Set<String> presentAttrIds = new java.util.HashSet<>();
+        for (ArmorSetData.AttributeData ad : attributes) {
+            presentAttrIds.add(ad.getAttribute());
+        }
+
+        // Group attributes by their best-matching package
         Map<String, List<ArmorSetData.AttributeData>> packageGroups = new java.util.LinkedHashMap<>();
-        List<ArmorSetData.AttributeData> ungrouped = new ArrayList<>();
+        Map<String, String> attrToPackage = new java.util.HashMap<>();
 
         for (ArmorSetData.AttributeData attrData : attributes) {
             AttributePackageManager.AttributePackage pkg =
-                    AttributePackageManager.findPackageFor(attrData.getAttribute());
+                    AttributePackageManager.findBestPackageFor(attrData.getAttribute(), presentAttrIds);
             if (pkg != null) {
                 packageGroups.computeIfAbsent(pkg.getName(), k -> new ArrayList<>()).add(attrData);
-            } else {
-                ungrouped.add(attrData);
+                attrToPackage.put(attrData.getAttribute(), pkg.getName());
             }
         }
 
@@ -360,39 +365,32 @@ public static void onMouseScroll(ScreenEvent.MouseScrolled.Pre event) {
 
         // Render in original order, but group package attributes together
         for (ArmorSetData.AttributeData attrData : attributes) {
-            AttributePackageManager.AttributePackage pkg =
-                    AttributePackageManager.findPackageFor(attrData.getAttribute());
+            String pkgName = attrToPackage.get(attrData.getAttribute());
 
-            if (pkg == null) {
-                // Not in any package → render directly
+            if (pkgName == null) {
+                // Not in any package (or package had <2 matches) → render directly
                 renderSingleAttribute(event, attrData);
             } else {
-                String pkgName = pkg.getName();
-                if (renderedPackages.contains(pkgName)) continue; // already rendered this package
+                if (renderedPackages.contains(pkgName)) continue;
                 renderedPackages.add(pkgName);
 
                 List<ArmorSetData.AttributeData> pkgAttrs = packageGroups.get(pkgName);
-                if (pkgAttrs.size() == 1) {
-                    // Only one attribute from this package → show directly
-                    renderSingleAttribute(event, pkgAttrs.get(0));
-                } else {
-                    // Multiple attributes from this package → compact or expand
-                    if (Screen.hasAltDown()) {
-                        // ALT held → show package header + individual attributes
-                        event.getToolTip().add(Component.literal("  " + pkgName + ":")
-                                .withStyle(ChatFormatting.YELLOW));
-                        for (ArmorSetData.AttributeData pkgAttr : pkgAttrs) {
-                            renderSingleAttribute(event, pkgAttr, "    ");
-                        }
-                    } else {
-                        // ALT not held → show collapsed package line
-                        event.getToolTip().add(Component.literal("  " + pkgName + " ")
-                                .withStyle(ChatFormatting.GREEN)
-                                .append(Component.literal("Increased ")
-                                        .withStyle(ChatFormatting.GREEN))
-                                .append(Component.literal("[ALT]")
-                                        .withStyle(ChatFormatting.GRAY)));
+                // Multiple attributes from this package → compact or expand
+                if (Screen.hasAltDown()) {
+                    // ALT held → show package header + individual attributes
+                    event.getToolTip().add(Component.literal("  " + pkgName + ":")
+                            .withStyle(ChatFormatting.YELLOW));
+                    for (ArmorSetData.AttributeData pkgAttr : pkgAttrs) {
+                        renderSingleAttribute(event, pkgAttr, "    ");
                     }
+                } else {
+                    // ALT not held → show collapsed package line
+                    event.getToolTip().add(Component.literal("  " + pkgName + " ")
+                            .withStyle(ChatFormatting.GREEN)
+                            .append(Component.literal("Increased ")
+                                    .withStyle(ChatFormatting.GREEN))
+                            .append(Component.literal("[ALT]")
+                                    .withStyle(ChatFormatting.GRAY)));
                 }
             }
         }
