@@ -15,7 +15,9 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.entity.ai.attributes.Attribute;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
@@ -681,12 +683,11 @@ public class SetsManagerScreen extends Screen {
                 }
             }
 
-            // Attributes — Icon (▸) in Grün, Name+Wert in Schwarz
+            // Attributes — Icon (▸) in Grün
             if (partData.getAttributes() != null && !partData.getAttributes().isEmpty()) {
                 for (ArmorSetData.AttributeData attrData : partData.getAttributes()) {
-                    String attrName = resolveAttributeName(attrData.getAttribute());
-                    String valueStr = formatAttributeValue(attrData);
-                    lines.add(DetailLine.indented("\u25B8 " + attrName + " " + valueStr, COLOR_ATTRIBUTE));
+                    String line = formatAttributeLine(attrData);
+                    lines.add(DetailLine.indented("\u25B8 " + line, COLOR_ATTRIBUTE));
                 }
             }
 
@@ -999,18 +1000,63 @@ public class SetsManagerScreen extends Screen {
         return path.replace("generic.", "").replace("_", " ");
     }
 
-    private String formatAttributeValue(ArmorSetData.AttributeData data) {
+    /**
+     * Formats a complete attribute display line including name and value.
+     * <ul>
+     *   <li>addition:       {@code +3 Armor}</li>
+     *   <li>multiply_base:  {@code +40% Armor (base)}</li>
+     *   <li>multiply_total: {@code Armor ×1.1 (total)}</li>
+     * </ul>
+     */
+    private String formatAttributeLine(ArmorSetData.AttributeData data) {
         double val = data.getValue();
-        String mod = data.getModifier();
-        if (mod != null && (mod.equalsIgnoreCase("multiply")
-                || mod.equalsIgnoreCase("multiply_base")
-                || mod.equalsIgnoreCase("multiply_total"))) {
-            return String.format("+%.0f%%", val * 100);
-        }
-        if (val == (long) val) {
-            return String.format("+%d", (long) val);
-        }
-        return String.format("+%.2f", val);
+        String mod = data.getModifier() != null ? data.getModifier() : "addition";
+        String attrName = resolveAttributeName(data.getAttribute());
+
+        // Try to get the formatted value from the attribute's own toValueComponent
+        String formattedValue = null;
+        try {
+            String attrId = data.getAttribute();
+            if (attrId != null) {
+                ResourceLocation loc = ResourceLocation.parse(
+                        attrId.contains(":") ? attrId : "minecraft:" + attrId);
+                Attribute attr = BuiltInRegistries.ATTRIBUTE.get(loc);
+                if (attr != null) {
+                    AttributeModifier.Operation op = mod.equalsIgnoreCase("multiply_base") || mod.equalsIgnoreCase("multiply")
+                            ? AttributeModifier.Operation.ADD_MULTIPLIED_BASE
+                            : AttributeModifier.Operation.ADD_VALUE;
+                    TooltipFlag flag = net.minecraft.client.Minecraft.getInstance().options.advancedItemTooltips
+                            ? TooltipFlag.ADVANCED : TooltipFlag.NORMAL;
+                    formattedValue = attr.toValueComponent(op, val, flag).getString();
+                }
+            }
+        } catch (Exception ignored) {}
+
+        // toValueComponent returns bare values (e.g. "3", "80%") — prepend +/- sign
+        String signedValue = formattedValue != null
+                ? (val >= 0 && !formattedValue.startsWith("+") && !formattedValue.startsWith("-") ? "+" : "") + formattedValue
+                : null;
+
+        return switch (mod.toLowerCase()) {
+            case "multiply_base", "multiply" -> {
+                String valStr = signedValue != null ? signedValue
+                        : String.format("+%.0f%%", val * 100);
+                yield valStr + " " + attrName + " (base)";
+            }
+            case "multiply_total" -> {
+                double multiplier = 1.0 + val;
+                String mulStr = (multiplier == (long) multiplier)
+                        ? String.valueOf((long) multiplier)
+                        : String.format("%.2f", multiplier);
+                yield attrName + " \u00D7" + mulStr + " (total)";
+            }
+            default -> {
+                // addition — use toValueComponent (handles % attributes like Crit Chance)
+                String valStr = signedValue != null ? signedValue
+                        : ((val == (long) val) ? String.format("+%d", (long) val) : String.format("+%.2f", val));
+                yield valStr + " " + attrName;
+            }
+        };
     }
 
     private static String toRoman(int number) {

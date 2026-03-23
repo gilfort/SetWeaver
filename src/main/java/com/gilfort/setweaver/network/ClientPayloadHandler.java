@@ -3,6 +3,7 @@ package com.gilfort.setweaver.network;
 import com.gilfort.setweaver.SetWeaver;
 import com.gilfort.setweaver.guis.SetsManagerScreen;
 import com.gilfort.setweaver.seteffects.ArmorSetDataRegistry;
+import com.gilfort.setweaver.seteffects.AttributePackageManager;
 import net.minecraft.client.Minecraft;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
@@ -43,8 +44,9 @@ public class ClientPayloadHandler {
                                           final IPayloadContext context) {
         context.enqueueWork(() -> {
             ArmorSetDataRegistry.deserializeFromJson(payload.registryJson());
-            SetWeaver.LOGGER.info("[SetWeaver] Received registry sync from server ({} chars)",
-                    payload.registryJson().length());
+            AttributePackageManager.deserializeFromJson(payload.packagesJson());
+            SetWeaver.LOGGER.info("[SetWeaver] Received registry sync from server ({} chars, {} chars packages)",
+                    payload.registryJson().length(), payload.packagesJson().length());
         });
     }
 }
