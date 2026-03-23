@@ -178,8 +178,8 @@ public class SetEditorData {
     public String getDisplayName() { return displayName; }
     public void setDisplayName(String displayName) { this.displayName = displayName; }
 
-    public String getrole() { return role; }
-    public void setrole(String role) { this.role = role; }
+    public String getRole() { return role; }
+    public void setRole(String role) { this.role = role; }
 
     public int getLevel() { return Level; }
     public void setLevel(int Level) { this.Level = Level; }
@@ -390,13 +390,13 @@ public class SetEditorData {
 
     /**
      * Computes the relative file path where this set should be saved.
-     * Based on the role/Level scope and tag.
+     * Based on the Role/Level scope and tag.
      *
      * <p>Examples:</p>
      * <ul>
-     *   <li>role=*, Level=* → {@code all_roles_all_Levels/zauberei__magiccloth_armor.json}</li>
-     *   <li>role=*, Level=3 → {@code all_roles/3/zauberei__magiccloth_armor.json}</li>
-     *   <li>role=naturalist, Level=3 → {@code naturalist/3/zauberei__magiccloth_armor.json}</li>
+     *   <li>Role=*, Level=* → {@code all_roles_all_Levels/zauberei__magiccloth_armor.json}</li>
+     *   <li>Role=*, Level=3 → {@code all_roles/3/zauberei__magiccloth_armor.json}</li>
+     *   <li>Role=naturalist, Level=3 → {@code naturalist/3/zauberei__magiccloth_armor.json}</li>
      * </ul>
      *
      * @return the relative path from the set_armor config directory
@@ -405,12 +405,12 @@ public class SetEditorData {
         // Convert tag "zauberei:magiccloth_armor" → filename "zauberei__magiccloth_armor.json"
         String fileName = tag.replace(":", "__") + ".json";
 
-        boolean wildrole = ArmorSetDataRegistry.WILDCARD_ROLE.equals(role);
+        boolean wildRole = ArmorSetDataRegistry.WILDCARD_ROLE.equals(role);
         boolean wildLevel = (Level == ArmorSetDataRegistry.WILDCARD_LEVEL);
 
-        if (wildrole && wildLevel) {
+        if (wildRole && wildLevel) {
             return "all_roles_all_Levels" + "/" + fileName;
-        } else if (wildrole) {
+        } else if (wildRole) {
             return "all_roles" + "/" + Level + "/" + fileName;
         } else {
             return role + "/" + Level + "/" + fileName;
@@ -437,11 +437,11 @@ public class SetEditorData {
             errors.add("Tag must include namespace (e.g. 'zauberei:my_armor').");
         }
 
-        // role/Level rule: if role is specific, Level must also be specific
-        boolean wildrole = ArmorSetDataRegistry.WILDCARD_ROLE.equals(role);
+        // Role/Level rule: if Role is specific, Level must also be specific
+        boolean wildRole = ArmorSetDataRegistry.WILDCARD_ROLE.equals(role);
         boolean wildLevel = (Level == ArmorSetDataRegistry.WILDCARD_LEVEL);
-        if (!wildrole && wildLevel) {
-            errors.add("If a role is selected, Level must also be specified.");
+        if (!wildRole && wildLevel) {
+            errors.add("If a Role is selected, Level must also be specified.");
         }
 
         // Step 2 validations

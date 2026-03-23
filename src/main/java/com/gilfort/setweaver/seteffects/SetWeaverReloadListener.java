@@ -116,12 +116,14 @@ public class SetWeaverReloadListener implements PreparableReloadListener {
             writeHowToFile();
             // Create example file
             writeExampleFile();
+            AttributePackageManager.loadFromConfig();
             SetWeaver.LOGGER.info("[SetWeaver] Created config directory with documentation: {}",
                     BASE_DIR.getAbsolutePath());
             return;
         }
 
         ArmorSetDataRegistry.clear();
+        AttributePackageManager.loadFromConfig();
         walkDirectory(BASE_DIR);
     }
 

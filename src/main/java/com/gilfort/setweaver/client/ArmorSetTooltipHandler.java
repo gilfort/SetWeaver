@@ -3,6 +3,7 @@ package com.gilfort.setweaver.client;
 import com.gilfort.setweaver.network.ClientPlayerDataCache;
 import com.gilfort.setweaver.seteffects.ArmorSetData;
 import com.gilfort.setweaver.seteffects.ArmorSetDataRegistry;
+import com.gilfort.setweaver.seteffects.AttributePackageManager;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
@@ -14,7 +15,9 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.entity.ai.attributes.Attribute;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.ArmorItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -315,43 +318,140 @@ public static void onMouseScroll(ScreenEvent.MouseScrolled.Pre event) {
             }
         }
 
-        // --- Render Attributes ---
+        // --- Render Attributes (with package compacting) ---
         if (partData.getAttributes() != null && !partData.getAttributes().isEmpty()) {
             event.getToolTip().add(Component.literal("[Bonus Attributes]")
                     .withStyle(ChatFormatting.AQUA));
 
-            for (ArmorSetData.AttributeData attrData : partData.getAttributes()) {
-                ResourceLocation attrLoc;
-                try {
-                    attrLoc = ResourceLocation.parse(attrData.getAttribute());
-                } catch (Exception e) {
-                    continue;
-                }
+            renderAttributesWithPackages(event, partData.getAttributes());
+        }
+    }
 
-                Attribute attribute = BuiltInRegistries.ATTRIBUTE.get(attrLoc);
-                if (attribute == null) continue;
+    // ─── Attribute Package Rendering ─────────────────────────────────────
 
-                Component attributeName = Component.translatable(attribute.getDescriptionId());
-                double rawValue = attrData.getValue();
-                String modifier = attrData.getModifier();
+    /**
+     * Renders attributes with package compacting.
+     *
+     * <p>When multiple attributes in the list belong to the same package,
+     * they are collapsed into a single line showing the package name.
+     * Holding ALT expands the package to show individual attributes.</p>
+     *
+     * <p>If only ONE attribute from a package is present, it is shown
+     * directly without collapsing.</p>
+     */
+    private static void renderAttributesWithPackages(ItemTooltipEvent event,
+                                                     List<ArmorSetData.AttributeData> attributes) {
+        // Collect all present attribute IDs for context-aware package matching
+        Set<String> presentAttrIds = new java.util.HashSet<>();
+        for (ArmorSetData.AttributeData ad : attributes) {
+            presentAttrIds.add(ad.getAttribute());
+        }
 
-                String displayValue;
-                if (modifier != null && (modifier.equalsIgnoreCase("multiply")
-                        || modifier.equalsIgnoreCase("multiply_base")
-                        || modifier.equalsIgnoreCase("multiply_total"))) {
-                    displayValue = String.format("+%.0f%%", rawValue * 100);
-                } else {
-                    displayValue = (rawValue == (long) rawValue)
-                            ? String.format("+%d", (long) rawValue)
-                            : String.format("+%.2f", rawValue);
-                }
+        // Group attributes by their best-matching package
+        Map<String, List<ArmorSetData.AttributeData>> packageGroups = new java.util.LinkedHashMap<>();
+        Map<String, String> attrToPackage = new java.util.HashMap<>();
 
-                event.getToolTip().add(attributeName.copy()
-                        .append(" ")
-                        .append(Component.literal(displayValue))
-                        .withStyle(ChatFormatting.GREEN));
+        for (ArmorSetData.AttributeData attrData : attributes) {
+            AttributePackageManager.AttributePackage pkg =
+                    AttributePackageManager.findBestPackageFor(attrData.getAttribute(), presentAttrIds);
+            if (pkg != null) {
+                packageGroups.computeIfAbsent(pkg.getName(), k -> new ArrayList<>()).add(attrData);
+                attrToPackage.put(attrData.getAttribute(), pkg.getName());
             }
         }
+
+        // Track which packages were already rendered
+        Set<String> renderedPackages = new java.util.HashSet<>();
+
+        // Render in original order, but group package attributes together
+        for (ArmorSetData.AttributeData attrData : attributes) {
+            String pkgName = attrToPackage.get(attrData.getAttribute());
+
+            if (pkgName == null) {
+                // Not in any package (or package had <2 matches) → render directly
+                renderSingleAttribute(event, attrData);
+            } else {
+                if (renderedPackages.contains(pkgName)) continue;
+                renderedPackages.add(pkgName);
+
+                List<ArmorSetData.AttributeData> pkgAttrs = packageGroups.get(pkgName);
+                // Multiple attributes from this package → compact or expand
+                if (Screen.hasAltDown()) {
+                    // ALT held → show package header + individual attributes
+                    event.getToolTip().add(Component.literal("  " + pkgName + ":")
+                            .withStyle(ChatFormatting.YELLOW));
+                    for (ArmorSetData.AttributeData pkgAttr : pkgAttrs) {
+                        renderSingleAttribute(event, pkgAttr, "    ");
+                    }
+                } else {
+                    // ALT not held → show collapsed package line
+                    event.getToolTip().add(Component.literal("  " + pkgName + " ")
+                            .withStyle(ChatFormatting.GREEN)
+                            .append(Component.literal("Increased ")
+                                    .withStyle(ChatFormatting.GREEN))
+                            .append(Component.literal("[ALT]")
+                                    .withStyle(ChatFormatting.GRAY)));
+                }
+            }
+        }
+    }
+
+    /**
+     * Renders a single attribute line with default indentation.
+     */
+    private static void renderSingleAttribute(ItemTooltipEvent event,
+                                               ArmorSetData.AttributeData attrData) {
+        renderSingleAttribute(event, attrData, "  ");
+    }
+
+    /**
+     * Renders a single attribute line with the given prefix.
+     */
+    private static void renderSingleAttribute(ItemTooltipEvent event,
+                                               ArmorSetData.AttributeData attrData,
+                                               String prefix) {
+        ResourceLocation attrLoc;
+        try {
+            attrLoc = ResourceLocation.parse(attrData.getAttribute());
+        } catch (Exception e) {
+            return;
+        }
+
+        Attribute attribute = BuiltInRegistries.ATTRIBUTE.get(attrLoc);
+        if (attribute == null) return;
+
+        Component attributeName = Component.translatable(attribute.getDescriptionId());
+        double rawValue = attrData.getValue();
+        String modifier = attrData.getModifier();
+
+        // Map our modifier string to MC's Operation enum
+        AttributeModifier.Operation operation = AttributeModifier.Operation.ADD_VALUE;
+        String suffix = "";
+        if (modifier != null) {
+            if (modifier.equalsIgnoreCase("multiply_base") || modifier.equalsIgnoreCase("multiply")) {
+                operation = AttributeModifier.Operation.ADD_MULTIPLIED_BASE;
+                if (modifier.equalsIgnoreCase("multiply_base")) suffix = " (base)";
+            } else if (modifier.equalsIgnoreCase("multiply_total")) {
+                operation = AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL;
+                suffix = " (total)";
+            }
+        }
+
+        // Let the attribute itself decide how to format the value (flat vs percentage)
+        TooltipFlag flag = Minecraft.getInstance().options.advancedItemTooltips
+                ? TooltipFlag.ADVANCED : TooltipFlag.NORMAL;
+        String valueStr = attribute.toValueComponent(operation, rawValue, flag).getString();
+        // toValueComponent returns bare values — prepend +/- sign
+        if (rawValue >= 0 && !valueStr.startsWith("+") && !valueStr.startsWith("-")) {
+            valueStr = "+" + valueStr;
+        }
+
+        event.getToolTip().add(Component.literal(prefix)
+                .append(attributeName.copy())
+                .append(" ")
+                .append(Component.literal(valueStr))
+                .append(Component.literal(suffix).withStyle(ChatFormatting.DARK_GREEN))
+                .withStyle(ChatFormatting.GREEN));
     }
 
     // ─── Set Name Resolution ─────────────────────────────────────────────

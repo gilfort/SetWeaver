@@ -129,14 +129,14 @@ public class ArmorSetDataRegistry {
 
         /**
          * Human-readable scope description for chat output.
-         * @return e.g. "naturalist / level 3", "ALL roles / level 1", "ALL roles / ALL levels"
+         * @return e.g. "naturalist / Level 3", "ALL Roles / Level 1", "ALL Roles / ALL Levels"
          */
         public String scopeLabel() {
             boolean wildRole = WILDCARD_ROLE.equals(role);
             boolean wildLevel  = level == WILDCARD_LEVEL;
-            if (wildRole && wildLevel) return "ALL roles / ALL levels";
-            if (wildRole)             return "ALL roles / level " + level;
-            return role + " / level " + level;
+            if (wildRole && wildLevel) return "ALL Roles / ALL Levels";
+            if (wildRole)             return "ALL Roles / Level " + level;
+            return role + " / Level " + level;
         }
     }
 

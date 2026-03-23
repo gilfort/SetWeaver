@@ -22,7 +22,7 @@ import java.util.stream.Collectors;
  * <ul>
  *   <li><b>Tag</b> — which item tag this set applies to (searchable popup)</li>
  *   <li><b>Display Name</b> — optional human-readable name for tooltips</li>
- *   <li><b>role</b> — school/class scope (* = all, or specific role)</li>
+ *   <li><b>Role</b> — school/class scope (* = all, or specific role)</li>
  *   <li><b>Level</b> — Level scope (* = all, or 1–99)</li>
  * </ul>
  *
@@ -116,7 +116,7 @@ public class SetWizardScreen extends Screen {
         this.sourceData = sourceData;
         // Pre-fill from source
         this.selectedTag = sourceData.getTag();
-        this.selectedRole = sourceData.getrole();
+        this.selectedRole = sourceData.getRole();
         this.selectedLevel = sourceData.getLevel();
         this.savedDisplayName = sourceData.getDisplayName();
     }
@@ -167,8 +167,8 @@ public class SetWizardScreen extends Screen {
 
         // ---- Row 3: role selector button ----
         roleButton = Button.builder(
-                        Component.literal(formatroleLabel(selectedRole)),
-                        btn -> onSelectrole())
+                        Component.literal(formatRoleLabel(selectedRole)),
+                        btn -> onSelectRole())
                 .bounds(fieldX, row3Y, fieldW, FIELD_HEIGHT)
                 .build();
         addRenderableWidget(roleButton);
@@ -233,7 +233,7 @@ public class SetWizardScreen extends Screen {
         // Row labels
         graphics.drawString(this.font, "Tag:",          contentX, row1Y + 6, COLOR_TEXT, false);
         graphics.drawString(this.font, "Display Name:", contentX, row2Y + 6, COLOR_TEXT, false);
-        graphics.drawString(this.font, "role:",        contentX, row3Y + 6, COLOR_TEXT, false);
+        graphics.drawString(this.font, "Role:",          contentX, row3Y + 6, COLOR_TEXT, false);
         graphics.drawString(this.font, "Level:",         contentX, row4Y + 6, COLOR_TEXT, false);
 
         // Status message area
@@ -260,11 +260,17 @@ public class SetWizardScreen extends Screen {
     // ══════════════════════════════════════════════════════════════════
 
     /**
-     * Opens a SearchableListPopup with all registered item tags.
+     * Opens a SearchableListPopup with item tags that contain at least one armor piece.
      */
     private void onSelectTag() {
         List<SearchableListPopup.Entry<String>> entries =
                 BuiltInRegistries.ITEM.getTagNames()
+                        .filter(tagKey -> {
+                            // Only include tags that contain at least one ArmorItem
+                            var tag = BuiltInRegistries.ITEM.getOrCreateTag(tagKey);
+                            return tag.stream().anyMatch(h ->
+                                    h.value() instanceof net.minecraft.world.item.ArmorItem);
+                        })
                         .sorted(Comparator.comparing(t -> t.location().toString()))
                         .map(tagKey -> {
                             String loc = tagKey.location().toString();
@@ -287,15 +293,15 @@ public class SetWizardScreen extends Screen {
     }
 
     /**
-     * Opens a SearchableListPopup with "* (All roles)" + all known roles.
+     * Opens a SearchableListPopup with "* (All Roles)" + all known roles.
      */
-    private void onSelectrole() {
+    private void onSelectRole() {
         List<SearchableListPopup.Entry<String>> entries = new ArrayList<>();
 
         // First entry: wildcard
         entries.add(new SearchableListPopup.Entry<>(
                 ArmorSetDataRegistry.WILDCARD_ROLE,
-                Component.literal("★ All roles (*)"),
+                Component.literal("★ All Roles (*)"),
                 "all roles * wildcard"));
 
         // All registered roles, sorted alphabetically
@@ -307,11 +313,11 @@ public class SetWizardScreen extends Screen {
                         m)));
 
         this.minecraft.setScreen(new SearchableListPopup<>(
-                Component.literal("Select role"),
+                Component.literal("Select Role"),
                 this, entries,
                 selected -> {
                     selectedRole = selected;
-                    roleButton.setMessage(Component.literal(formatroleLabel(selected)));
+                    roleButton.setMessage(Component.literal(formatRoleLabel(selected)));
                     clearStatus();
                 },
                 true
@@ -366,11 +372,11 @@ public class SetWizardScreen extends Screen {
             return;
         }
 
-        // role/Level rule: if role is specific, Level must also be specific
-        boolean wildrole = ArmorSetDataRegistry.WILDCARD_ROLE.equals(selectedRole);
+        // Role/Level rule: if Role is specific, Level must also be specific
+        boolean wildRole = ArmorSetDataRegistry.WILDCARD_ROLE.equals(selectedRole);
         boolean wildLevel  = (selectedLevel == ArmorSetDataRegistry.WILDCARD_LEVEL);
-        if (!wildrole && wildLevel) {
-            setStatus("If a role is selected, Level must also be specified.", COLOR_ERROR);
+        if (!wildRole && wildLevel) {
+            setStatus("If a Role is selected, Level must also be specified.", COLOR_ERROR);
             return;
         }
 
@@ -378,7 +384,7 @@ public class SetWizardScreen extends Screen {
         SetEditorData editorData = new SetEditorData();
         editorData.setTag(selectedTag);
         editorData.setDisplayName(displayNameBox.getValue().trim());
-        editorData.setrole(selectedRole);
+        editorData.setRole(selectedRole);
         editorData.setLevel(selectedLevel);
 
         // ---- 3. Existence check (exact match only) ----
@@ -455,11 +461,11 @@ public class SetWizardScreen extends Screen {
     // ══════════════════════════════════════════════════════════════════
 
     /**
-     * Formats the role value for display on the button.
+     * Formats the Role value for display on the button.
      */
-    private static String formatroleLabel(String role) {
+    private static String formatRoleLabel(String role) {
         if (ArmorSetDataRegistry.WILDCARD_ROLE.equals(role)) {
-            return "★ All roles (*)";
+            return "★ All Roles (*)";
         }
         return capitalizeFirst(role);
     }

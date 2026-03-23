@@ -2,6 +2,7 @@ package com.gilfort.setweaver.network;
 
 import com.gilfort.setweaver.SetWeaver;
 import com.gilfort.setweaver.seteffects.ArmorSetDataRegistry;
+import com.gilfort.setweaver.seteffects.AttributePackageManager;
 import com.gilfort.setweaver.seteffects.SetWeaverReloadListener;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
@@ -77,8 +78,9 @@ public class ServerPayloadHandler {
 
                 // Broadcast updated registry to all connected clients
                 String registryJson = ArmorSetDataRegistry.serializeToJson();
+                String packagesJson = AttributePackageManager.serializeToJson();
                 sender.getServer().getPlayerList().getPlayers().forEach(player ->
-                        PacketDistributor.sendToPlayer(player, new RegistrySyncPayload(registryJson))
+                        PacketDistributor.sendToPlayer(player, new RegistrySyncPayload(registryJson, packagesJson))
                 );
 
                 sender.sendSystemMessage(Component.literal("[SetWeaver] Set saved and synced successfully."));

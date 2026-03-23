@@ -7,6 +7,7 @@ import com.gilfort.setweaver.network.PlayerDataPayload;
 import com.gilfort.setweaver.network.RegistrySyncPayload;
 import com.gilfort.setweaver.seteffects.ArmorEffects;
 import com.gilfort.setweaver.seteffects.ArmorSetDataRegistry;
+import com.gilfort.setweaver.seteffects.AttributePackageManager;
 import com.gilfort.setweaver.seteffects.SetWeaverReloadListener;
 import com.gilfort.setweaver.util.SetWeaverPlayerData;
 import net.minecraft.resources.ResourceLocation;
@@ -98,7 +99,8 @@ public class SetWeaver
     @SubscribeEvent
     public void onDatapackSync(OnDatapackSyncEvent event) {
         String registryJson = ArmorSetDataRegistry.serializeToJson();
-        RegistrySyncPayload registryPayload = new RegistrySyncPayload(registryJson);
+        String packagesJson = AttributePackageManager.serializeToJson();
+        RegistrySyncPayload registryPayload = new RegistrySyncPayload(registryJson, packagesJson);
 
         ServerPlayer target = event.getPlayer();
         if (target != null) {
@@ -133,7 +135,9 @@ public class SetWeaver
             String role = PlayerDataHelper.getRole(player);
             int year = PlayerDataHelper.getLevel(player);
             PacketDistributor.sendToPlayer(player, new PlayerDataPayload(role, year));
-            PacketDistributor.sendToPlayer(player, new RegistrySyncPayload(ArmorSetDataRegistry.serializeToJson()));
+            PacketDistributor.sendToPlayer(player, new RegistrySyncPayload(
+                    ArmorSetDataRegistry.serializeToJson(),
+                    AttributePackageManager.serializeToJson()));
             LOGGER.info("[SetWeaver] Synced player data and registry to client for {}",
                     player.getName().getString());
         }
