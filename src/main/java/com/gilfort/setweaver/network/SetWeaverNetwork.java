@@ -40,5 +40,12 @@ public class SetWeaverNetwork {
                 SaveSetPayload.STREAM_CODEC,
                 ServerPayloadHandler::handleSaveSet
         );
+
+        // Client → Server: create/update a custom item tag
+        registrar.playToServer(
+                SaveTagPayload.TYPE,
+                SaveTagPayload.STREAM_CODEC,
+                ServerPayloadHandler::handleSaveTag
+        );
     }
 }
