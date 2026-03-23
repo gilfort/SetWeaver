@@ -10,6 +10,8 @@ import net.neoforged.fml.loading.FMLPaths;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
+import com.google.gson.*;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -91,5 +93,103 @@ public class ServerPayloadHandler {
                         sender.getName().getString(), e.getMessage());
             }
         });
+    }
+
+    // ─── Tag Creation ────────────────────────────────────────────────────
+
+    private static final String DATAPACK_NAME = "setweaver_custom";
+    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+
+    /**
+     * Handles a save-tag request from a client.
+     * Creates a custom item tag inside a SetWeaver-managed datapack in the world save.
+     *
+     * <p>Datapack structure:<br>
+     * {@code <world>/datapacks/setweaver_custom/data/<namespace>/tags/item/<tagName>.json}</p>
+     *
+     * <p>After saving, the player must run {@code /reload} to make the tag available.</p>
+     */
+    public static void handleSaveTag(final SaveTagPayload payload,
+                                     final IPayloadContext context) {
+        context.enqueueWork(() -> {
+            if (!(context.player() instanceof ServerPlayer sender)) return;
+
+            // Permission check
+            if (!sender.hasPermissions(2)) {
+                sender.sendSystemMessage(Component.literal("[SetWeaver] Permission denied."));
+                return;
+            }
+
+            String namespace = payload.namespace().trim().toLowerCase();
+            String tagName = payload.tagName().trim().toLowerCase();
+
+            // Validate namespace and tag name (only allow safe characters)
+            if (!namespace.matches("[a-z0-9_.-]+") || !tagName.matches("[a-z0-9_./-]+")) {
+                sender.sendSystemMessage(Component.literal(
+                        "[SetWeaver] Invalid tag name. Use only lowercase letters, numbers, underscores, dots, hyphens."));
+                return;
+            }
+
+            // Prevent directory traversal
+            if (tagName.contains("..")) {
+                sender.sendSystemMessage(Component.literal("[SetWeaver] Invalid tag name."));
+                return;
+            }
+
+            try {
+                // Parse items JSON array
+                JsonArray itemsArray = JsonParser.parseString(payload.itemsJson()).getAsJsonArray();
+
+                // Build tag JSON: {"replace": false, "values": [...]}
+                JsonObject tagJson = new JsonObject();
+                tagJson.addProperty("replace", false);
+                tagJson.add("values", itemsArray);
+
+                // Resolve world datapack path
+                Path worldDir = sender.getServer().getWorldPath(net.minecraft.world.level.storage.LevelResource.ROOT);
+                Path datapackDir = worldDir.resolve("datapacks").resolve(DATAPACK_NAME);
+
+                // Ensure pack.mcmeta exists
+                ensurePackMcmeta(datapackDir);
+
+                // Write tag file
+                Path tagFile = datapackDir
+                        .resolve("data")
+                        .resolve(namespace)
+                        .resolve("tags")
+                        .resolve("item")
+                        .resolve(tagName + ".json");
+
+                Files.createDirectories(tagFile.getParent());
+                Files.writeString(tagFile, GSON.toJson(tagJson));
+
+                SetWeaver.LOGGER.info("Player {} created custom tag {}:{} with {} items",
+                        sender.getName().getString(), namespace, tagName, itemsArray.size());
+
+                sender.sendSystemMessage(Component.literal(
+                        "[SetWeaver] Tag '" + namespace + ":" + tagName + "' saved. Run /reload to apply."));
+
+            } catch (Exception e) {
+                sender.sendSystemMessage(Component.literal("[SetWeaver] Failed to save tag: " + e.getMessage()));
+                SetWeaver.LOGGER.error("Failed to save custom tag for player {}: {}",
+                        sender.getName().getString(), e.getMessage());
+            }
+        });
+    }
+
+    /**
+     * Ensures the SetWeaver custom datapack has a valid pack.mcmeta file.
+     */
+    private static void ensurePackMcmeta(Path datapackDir) throws IOException {
+        Path mcmeta = datapackDir.resolve("pack.mcmeta");
+        if (!Files.exists(mcmeta)) {
+            Files.createDirectories(datapackDir);
+            JsonObject pack = new JsonObject();
+            JsonObject packInfo = new JsonObject();
+            packInfo.addProperty("description", "SetWeaver custom tags");
+            packInfo.addProperty("pack_format", 48); // MC 1.21.x
+            pack.add("pack", packInfo);
+            Files.writeString(mcmeta, GSON.toJson(pack));
+        }
     }
 }

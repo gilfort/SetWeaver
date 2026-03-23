@@ -59,6 +59,9 @@ public class SetsManagerScreen extends Screen {
     // ─── Tag Browser state ───────────────────────────────────────────────
     private boolean showingTagBrowser = false;
     private EditBox tagSearchBox;
+    private Button createTagButton;
+    private int[] editTagBounds = null;
+    private int lastMouseX, lastMouseY;
     private List<TagKey<Item>> allTags = new ArrayList<>();
     private List<TagKey<Item>> filteredTags = new ArrayList<>();
     private int tagSelectedIndex = -1;
@@ -249,6 +252,12 @@ public class SetsManagerScreen extends Screen {
         tagSearchBox.setVisible(false);
         addRenderableWidget(tagSearchBox);
 
+        // ── Create Tag button (visible only in tag browser) ─────────────
+        createTagButton = Button.builder(Component.literal("+ Create Tag"), btn -> onCreateTag())
+                .bounds(leftX, leftY + leftH - 20, leftW, 20).build();
+        createTagButton.visible = false;
+        addRenderableWidget(createTagButton);
+
 // ── Tag-Daten vorladen (nur Tags mit mindestens einem Rüstungsteil) ──
         allTags = BuiltInRegistries.ITEM.getTagNames()
                 .filter(tagKey -> {
@@ -357,6 +366,8 @@ public class SetsManagerScreen extends Screen {
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         super.render(graphics, mouseX, mouseY, partialTick);
+        lastMouseX = mouseX;
+        lastMouseY = mouseY;
 
         if (showingTagBrowser) {
             renderTagList(graphics, mouseX, mouseY);
@@ -463,11 +474,24 @@ public class SetsManagerScreen extends Screen {
         }
         y += lineHeight;
 
-        // Count
+        // Count + Edit button for setweaver custom tags
         if (isVisible(y)) {
             graphics.drawString(this.font,
                     selectedTagItems.size() + " item(s)",
                     rightX + 3, y, COLOR_TEXT, false);
+
+            // Show "Edit" link for setweaver-namespaced tags (user-created)
+            if ("setweaver".equals(tag.location().getNamespace())) {
+                String editLabel = "[Edit]";
+                int editX = rightX + rightW - this.font.width(editLabel) - 5;
+                boolean editHover = lastMouseX >= editX && lastMouseX < editX + this.font.width(editLabel)
+                        && lastMouseY >= y && lastMouseY < y + lineHeight;
+                graphics.drawString(this.font, editLabel, editX, y,
+                        editHover ? 0xFF0088CC : 0xFF336699, false);
+                editTagBounds = new int[]{editX, y, this.font.width(editLabel), lineHeight};
+            } else {
+                editTagBounds = null;
+            }
         }
         y += lineHeight;
         y += lineHeight; // blank line
@@ -875,8 +899,16 @@ public class SetsManagerScreen extends Screen {
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (super.mouseClicked(mouseX, mouseY, button)) return true;
 
-        // Tag Browser: click on tag list
+        // Tag Browser: click on tag list or edit button
         if (showingTagBrowser) {
+            // Edit tag button (right panel)
+            if (editTagBounds != null
+                    && mouseX >= editTagBounds[0] && mouseX < editTagBounds[0] + editTagBounds[2]
+                    && mouseY >= editTagBounds[1] && mouseY < editTagBounds[1] + editTagBounds[3]) {
+                onEditTag();
+                return true;
+            }
+
             int listY = leftY + 18;
             int listH = leftH - 18;
             if (mouseX >= leftX && mouseX <= leftX + leftW
@@ -1278,6 +1310,7 @@ public class SetsManagerScreen extends Screen {
         showingTagBrowser = !showingTagBrowser;
         showingValidation = false;
         tagSearchBox.setVisible(showingTagBrowser);
+        createTagButton.visible = showingTagBrowser;
         tagLeftScrollOffset = 0;
         tagRightScrollOffset = 0;
 
@@ -1286,6 +1319,31 @@ public class SetsManagerScreen extends Screen {
             setFocused(tagSearchBox);
             onTagFilterChanged(tagSearchBox.getValue()); // apply current filter
         }
+    }
+
+    private void onCreateTag() {
+        assert this.minecraft != null;
+        this.minecraft.setScreen(new TagCreatorScreen(this));
+    }
+
+    private void onEditTag() {
+        if (tagSelectedIndex < 0 || tagSelectedIndex >= filteredTags.size()) return;
+        assert this.minecraft != null;
+
+        TagKey<Item> tag = filteredTags.get(tagSelectedIndex);
+        String namespace = tag.location().getNamespace();
+        String tagName = tag.location().getPath();
+
+        // Collect current item IDs from the tag
+        List<String> itemIds = new ArrayList<>();
+        for (Item item : selectedTagItems) {
+            ResourceLocation loc = BuiltInRegistries.ITEM.getKey(item);
+            if (loc != null) {
+                itemIds.add(loc.toString());
+            }
+        }
+
+        this.minecraft.setScreen(new TagCreatorScreen(this, namespace, tagName, itemIds));
     }
 
     private void onTagFilterChanged(String filter) {
