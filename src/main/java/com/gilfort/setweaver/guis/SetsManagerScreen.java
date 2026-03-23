@@ -390,9 +390,9 @@ public class SetsManagerScreen extends Screen {
     // ─── Tag Browser: left panel (tag list) ──────────────────────────────
 
     private void renderTagList(GuiGraphics graphics, int mouseX, int mouseY) {
-        // Bereich unterhalb der SearchBox
+        // Bereich unterhalb der SearchBox, oberhalb des "+ Create Tag" Buttons
         int listY = leftY + 18; // SearchBox ist 14px hoch + 4px Abstand
-        int listH = leftH - 18;
+        int listH = leftH - 18 - 24; // 24px Platz für den Button unten
         int maxLines = listH / lineHeight;
 
         graphics.enableScissor(leftX, listY, leftX + leftW, listY + listH);
@@ -910,7 +910,7 @@ public class SetsManagerScreen extends Screen {
             }
 
             int listY = leftY + 18;
-            int listH = leftH - 18;
+            int listH = leftH - 18 - 24; // match renderTagList button space
             if (mouseX >= leftX && mouseX <= leftX + leftW
                     && mouseY >= listY && mouseY <= listY + listH) {
                 int clickedLine = (int) ((mouseY - listY) / lineHeight) + tagLeftScrollOffset;
@@ -1222,7 +1222,7 @@ public class SetsManagerScreen extends Screen {
                 double multiplier = 1.0 + val;
                 String mulStr = (multiplier == (long) multiplier)
                         ? String.valueOf((long) multiplier)
-                        : String.format("%.2f", multiplier);
+                        : String.format(java.util.Locale.US, "%.2f", multiplier);
                 yield attrName + " \u00D7" + mulStr + " (total)";
             }
             default -> {

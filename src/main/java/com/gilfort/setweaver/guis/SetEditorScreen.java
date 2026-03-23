@@ -364,7 +364,7 @@ public class SetEditorScreen extends Screen {
         inlineEditTarget = InlineEditTarget.ATTR_VALUE;
         inlineEditIndex = index;
         String sign = ad.getValue() >= 0 ? "+" : "";
-        inlineOldValue = sign + String.format("%.2f", ad.getValue());
+        inlineOldValue = sign + String.format(java.util.Locale.US, "%.2f", ad.getValue());
 
         // Overlay spans BOTH value + modifier columns
         overlayX = colX;
@@ -1187,7 +1187,7 @@ public class SetEditorScreen extends Screen {
     private String formatAttrValue(AttributeData ad) {
         String mod = ad.getModifier() != null ? ad.getModifier() : "add";
         String sign = ad.getValue() >= 0 ? "+" : "";
-        return sign + String.format("%.2f", ad.getValue()) + " (" + mod + ")";
+        return sign + String.format(java.util.Locale.US, "%.2f", ad.getValue()) + " (" + mod + ")";
     }
 
     @Override
