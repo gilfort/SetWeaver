@@ -62,14 +62,14 @@ public class CommandHandler {
                                 .requires(src -> src.hasPermission(2))
                                 .executes(ctx -> openSetsGui(ctx.getSource())))
 
-                        // ── set <player> <role> <year> ───────────────────────
+                        // ── set <player> <role> <level> ───────────────────────
                         .then(Commands.literal("set")
                                 .requires(src -> src.hasPermission(2))
                                 .then(Commands.argument("target", StringArgumentType.word())
                                         .suggests(PLAYER_SUGGESTIONS)
                                         .then(Commands.argument("role", StringArgumentType.word())
                                                 .suggests(ROLE_SUGGESTIONS)
-                                                .then(Commands.argument("year", IntegerArgumentType.integer(1))
+                                                .then(Commands.argument("level", IntegerArgumentType.integer(1))
                                                         .executes(CommandHandler::setPlayerDataCommand)))))
 
                         // ── check <player> ───────────────────────────────────
@@ -107,13 +107,13 @@ public class CommandHandler {
     }
 
     /**
-     * Sets the role and year for a target player.
-     * Usage: /setweaver set &lt;player&gt; &lt;role&gt; &lt;year&gt;
+     * Sets the role and level for a target player.
+     * Usage: /setweaver set &lt;player&gt; &lt;role&gt; &lt;level&gt;
      */
     private static int setPlayerDataCommand(CommandContext<CommandSourceStack> context) {
         String targetName = StringArgumentType.getString(context, "target");
         String role = StringArgumentType.getString(context, "role");
-        int year = IntegerArgumentType.getInteger(context, "year");
+        int level = IntegerArgumentType.getInteger(context, "level");
         CommandSourceStack source = context.getSource();
 
         ServerPlayer target = source.getServer().getPlayerList().getPlayerByName(targetName);
@@ -123,10 +123,10 @@ public class CommandHandler {
         }
 
         PlayerDataHelper.setRole(target, role);
-        PlayerDataHelper.setLevel(target, year);
+        PlayerDataHelper.setLevel(target, level);
 
-        // Sync the updated role/year to the target player's client
-        PacketDistributor.sendToPlayer(target, new PlayerDataPayload(role, year));
+        // Sync the updated role/level to the target player's client
+        PacketDistributor.sendToPlayer(target, new PlayerDataPayload(role, level));
 
         source.sendSuccess(() -> Component.literal("[SetWeaver] ")
                 .withStyle(ChatFormatting.AQUA)
@@ -134,13 +134,13 @@ public class CommandHandler {
                 .append(Component.literal(" → ").withStyle(ChatFormatting.DARK_GRAY))
                 .append(Component.literal("Role: ").withStyle(ChatFormatting.GRAY))
                 .append(Component.literal(role).withStyle(ChatFormatting.GREEN))
-                .append(Component.literal("  Year: ").withStyle(ChatFormatting.GRAY))
-                .append(Component.literal(String.valueOf(year)).withStyle(ChatFormatting.YELLOW)), true);
+                .append(Component.literal("  Level: ").withStyle(ChatFormatting.GRAY))
+                .append(Component.literal(String.valueOf(level)).withStyle(ChatFormatting.YELLOW)), true);
         return Command.SINGLE_SUCCESS;
     }
 
     /**
-     * Displays the current role and year of a target player.
+     * Displays the current role and level of a target player.
      * Usage: /setweaver check &lt;player&gt;
      */
     private static int checkPlayer(CommandSourceStack source, String playerName) {
@@ -151,7 +151,7 @@ public class CommandHandler {
         }
 
         String role = PlayerDataHelper.getRole(target);
-        int year = PlayerDataHelper.getLevel(target);
+        int level = PlayerDataHelper.getLevel(target);
 
         source.sendSystemMessage(Component.literal("[SetWeaver] ")
                 .withStyle(ChatFormatting.AQUA)
@@ -159,8 +159,8 @@ public class CommandHandler {
                 .append(Component.literal(" → ").withStyle(ChatFormatting.DARK_GRAY))
                 .append(Component.literal("Role: ").withStyle(ChatFormatting.GRAY))
                 .append(Component.literal(role.isEmpty() ? "(not set)" : role).withStyle(ChatFormatting.GREEN))
-                .append(Component.literal("  Year: ").withStyle(ChatFormatting.GRAY))
-                .append(Component.literal(year == 0 ? "(not set)" : String.valueOf(year)).withStyle(ChatFormatting.YELLOW)));
+                .append(Component.literal("  Level: ").withStyle(ChatFormatting.GRAY))
+                .append(Component.literal(level == 0 ? "(not set)" : String.valueOf(level)).withStyle(ChatFormatting.YELLOW)));
         return 1;
     }
 }

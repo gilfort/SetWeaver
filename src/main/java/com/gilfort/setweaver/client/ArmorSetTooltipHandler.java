@@ -43,7 +43,7 @@ import java.util.Set;
  * hold SHIFT and scroll the mouse wheel to browse through all matching sets.
  * If only one set matches, behavior is identical to the non-paginated version.
  *
- * @see ArmorSetDataRegistry — provides set definitions per role/Level/tag
+ * @see ArmorSetDataRegistry — provides set definitions per role/level/tag
  * @see <a href="https://github.com/gilfort/Zauberei-1.21.1/issues/17">Issue #17</a>
  */
 @OnlyIn(Dist.CLIENT)
@@ -148,7 +148,7 @@ public static void onMouseScroll(ScreenEvent.MouseScrolled.Pre event) {
             return;
         }
 
-        // --- Determine role and Level from server-synced cache ---
+        // --- Determine role and level from server-synced cache ---
         Player player = Minecraft.getInstance().player;
         if (player == null) return;
 
@@ -159,10 +159,10 @@ public static void onMouseScroll(ScreenEvent.MouseScrolled.Pre event) {
         }
 
         String role = ClientPlayerDataCache.getRole();
-        int Level = ClientPlayerDataCache.getYear();
+        int level = ClientPlayerDataCache.getLevel();
 
-        // --- Lookup registered tags for this role/Level ---
-        Set<String> registeredTags = ArmorSetDataRegistry.getRegisteredTags(role.toLowerCase(), Level);
+        // --- Lookup registered tags for this role/level ---
+        Set<String> registeredTags = ArmorSetDataRegistry.getRegisteredTags(role.toLowerCase(), level);
         if (registeredTags.isEmpty()) {
             event.getToolTip().add(Component.literal("[No set bonus for your current role]")
                     .withStyle(ChatFormatting.GRAY));
@@ -200,7 +200,7 @@ public static void onMouseScroll(ScreenEvent.MouseScrolled.Pre event) {
 
         // ── Render the SINGLE selected set ───────────────────────────────
         String selectedTag = matchingTags.get(currentSetPage);
-        renderSetTooltip(event, player, role, Level, selectedTag, matchingTags.size());
+        renderSetTooltip(event, player, role, level, selectedTag, matchingTags.size());
     }
 
     // ─── Single-Set Rendering ────────────────────────────────────────────
@@ -212,12 +212,12 @@ public static void onMouseScroll(ScreenEvent.MouseScrolled.Pre event) {
      * @param event         the tooltip event to append lines to
      * @param player        the local player
      * @param role         the player's current role (lowercase)
-     * @param Level          the player's current Level
+     * @param level          the player's current level
      * @param tagString     the tag string of the set to render
      * @param totalSets     total number of matching sets (for the pagination header)
      */
     private static void renderSetTooltip(ItemTooltipEvent event, Player player,
-                                         String role, int Level,
+                                         String role, int level,
                                          String tagString, int totalSets) {
 
         ResourceLocation tagLoc = ResourceLocation.parse(tagString);
@@ -231,7 +231,7 @@ public static void onMouseScroll(ScreenEvent.MouseScrolled.Pre event) {
             }
         }
 
-        ArmorSetData data = ArmorSetDataRegistry.getData(role.toLowerCase(), Level, tagString);
+        ArmorSetData data = ArmorSetDataRegistry.getData(role.toLowerCase(), level, tagString);
         if (data == null || data.getParts() == null) return;
 
         // Determine the maximum part threshold defined in the set
@@ -307,8 +307,8 @@ public static void onMouseScroll(ScreenEvent.MouseScrolled.Pre event) {
                 if (mobEffect == null) continue;
 
                 Component effectName = mobEffect.getDisplayName();
-                int level = effect.getAmplifier() + 1;
-                Component levelRoman = Component.translatable("enchantment.level." + level);
+                int amplifier = effect.getAmplifier() + 1;
+                Component levelRoman = Component.translatable("enchantment.level." + amplifier);
 
                 event.getToolTip().add(Component.literal("- ")
                         .append(effectName)

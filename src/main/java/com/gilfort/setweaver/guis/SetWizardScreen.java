@@ -76,7 +76,7 @@ public class SetWizardScreen extends Screen {
     private Button tagButton;
     private EditBox displayNameBox;
     private Button roleButton;
-    private Button LevelButton;
+    private Button levelButton;
     private Button nextButton;
 
     // ──── Panel position (computed in init) ────────────────────────────
@@ -174,12 +174,12 @@ public class SetWizardScreen extends Screen {
         addRenderableWidget(roleButton);
 
         // ---- Row 4: Level selector button ----
-        LevelButton = Button.builder(
+        levelButton = Button.builder(
                         Component.literal(formatLevelLabel(selectedLevel)),
                         btn -> onSelectLevel())
                 .bounds(fieldX, row4Y, fieldW, FIELD_HEIGHT)
                 .build();
-        addRenderableWidget(LevelButton);
+        addRenderableWidget(levelButton);
 
         // ---- Bottom buttons: Back / Next ----
         int btnW = 80;
@@ -351,7 +351,7 @@ public class SetWizardScreen extends Screen {
                 this, entries,
                 selected -> {
                     selectedLevel = selected;
-                    LevelButton.setMessage(Component.literal(formatLevelLabel(selected)));
+                    levelButton.setMessage(Component.literal(formatLevelLabel(selected)));
                     clearStatus();
                 }
         ));
@@ -433,11 +433,11 @@ public class SetWizardScreen extends Screen {
      *
      * @return the existing ArmorSetData, or null if no exact match
      */
-    private static ArmorSetData findExactMatch(String tag, String role, int Level) {
+    private static ArmorSetData findExactMatch(String tag, String role, int level) {
         for (ArmorSetDataRegistry.SetEntry entry : ArmorSetDataRegistry.getAllEntries()) {
             if (entry.tag().equals(tag)
                     && entry.role().equals(role)
-                    && entry.level() == Level) {
+                    && entry.level() == level) {
                 return entry.data();
             }
         }
@@ -471,13 +471,13 @@ public class SetWizardScreen extends Screen {
     }
 
     /**
-     * Formats the Level value for display on the button.
+     * Formats the level value for display on the button.
      */
-    private static String formatLevelLabel(int Level) {
-        if (Level == ArmorSetDataRegistry.WILDCARD_LEVEL) {
+    private static String formatLevelLabel(int level) {
+        if (level == ArmorSetDataRegistry.WILDCARD_LEVEL) {
             return "★ All Levels (*)";
         }
-        return "Level " + Level;
+        return "Level " + level;
     }
 
     /**

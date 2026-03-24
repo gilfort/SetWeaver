@@ -32,7 +32,7 @@ public class ArmorEffects {
     private static final int TICK_INTERVAL = 60;
 
     /** Per-player cooldown tracker. Stores the last server tick when effects were applied. */
-    private static final Map<UUID, Long> lastAppliedTick = new HashMap<>();
+    private static final Map<UUID, Long> lastAppliedTick = Collections.synchronizedMap(new HashMap<>());
 
     public static void register(IEventBus eventBus) {
         NeoForge.EVENT_BUS.addListener(ArmorEffects::onPlayerTick);
@@ -61,7 +61,7 @@ public class ArmorEffects {
 
             applySetBasedEffects(player, role, level);
 
-            // Sync role/year to client cache (ensures tooltip works on dedicated servers)
+            // Sync role/level to client cache (ensures tooltip works on dedicated servers)
             PacketDistributor.sendToPlayer(player, new PlayerDataPayload(role, level));
         }
     }

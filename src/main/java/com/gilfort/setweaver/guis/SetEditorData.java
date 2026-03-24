@@ -34,10 +34,10 @@ public class SetEditorData {
     private String role = ArmorSetDataRegistry.WILDCARD_ROLE;
 
     /**
-     * The Level this set applies to.
-     * Use {@code -1} ({@link ArmorSetDataRegistry#WILDCARD_LEVEL}) for all Levels.
+     * The level this set applies to.
+     * Use {@code -1} ({@link ArmorSetDataRegistry#WILDCARD_LEVEL}) for all levels.
      */
-    private int Level = ArmorSetDataRegistry.WILDCARD_LEVEL;
+    private int level = ArmorSetDataRegistry.WILDCARD_LEVEL;
 
     /** Whether this set already exists in the registry (edit mode). */
     private boolean existingSet = false;
@@ -181,8 +181,8 @@ public class SetEditorData {
     public String getRole() { return role; }
     public void setRole(String role) { this.role = role; }
 
-    public int getLevel() { return Level; }
-    public void setLevel(int Level) { this.Level = Level; }
+    public int getLevel() { return level; }
+    public void setLevel(int level) { this.level = level; }
 
     public boolean isExistingSet() { return existingSet; }
     public void setExistingSet(boolean existingSet) { this.existingSet = existingSet; }
@@ -262,14 +262,14 @@ public class SetEditorData {
      *
      * @param tag   the item tag string (e.g. "zauberei:magiccloth_armor")
      * @param role the role (or "*" for wildcard)
-     * @param Level  the Level (or -1 for wildcard)
+     * @param level  the level (or -1 for wildcard)
      * @param data  the existing set data to load into the editor
      * @return this instance for chaining
      */
-    public SetEditorData loadFrom(String tag, String role, int Level, ArmorSetData data) {
+    public SetEditorData loadFrom(String tag, String role, int level, ArmorSetData data) {
         this.tag = tag;
         this.role = role;
-        this.Level = Level;
+        this.level = level;
         this.existingSet = true;
         this.displayName = data.getDisplayName() != null ? data.getDisplayName() : "";
 
@@ -406,14 +406,14 @@ public class SetEditorData {
         String fileName = tag.replace(":", "__") + ".json";
 
         boolean wildRole = ArmorSetDataRegistry.WILDCARD_ROLE.equals(role);
-        boolean wildLevel = (Level == ArmorSetDataRegistry.WILDCARD_LEVEL);
+        boolean wildLevel = (level == ArmorSetDataRegistry.WILDCARD_LEVEL);
 
         if (wildRole && wildLevel) {
-            return "all_roles_all_Levels" + "/" + fileName;
+            return "all_roles_all_levels" + "/" + fileName;
         } else if (wildRole) {
-            return "all_roles" + "/" + Level + "/" + fileName;
+            return "all_roles" + "/" + level + "/" + fileName;
         } else {
-            return role + "/" + Level + "/" + fileName;
+            return role + "/" + level + "/" + fileName;
         }
     }
 
@@ -437,9 +437,9 @@ public class SetEditorData {
             errors.add("Tag must include namespace (e.g. 'zauberei:my_armor').");
         }
 
-        // Role/Level rule: if Role is specific, Level must also be specific
+        // Role/Level rule: if a specific role is set, level must also be specific
         boolean wildRole = ArmorSetDataRegistry.WILDCARD_ROLE.equals(role);
-        boolean wildLevel = (Level == ArmorSetDataRegistry.WILDCARD_LEVEL);
+        boolean wildLevel = (level == ArmorSetDataRegistry.WILDCARD_LEVEL);
         if (!wildRole && wildLevel) {
             errors.add("If a Role is selected, Level must also be specified.");
         }

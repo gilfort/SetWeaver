@@ -106,18 +106,18 @@ public class SetWeaver
         if (target != null) {
             // Single player login — sync to that player only
             String role = PlayerDataHelper.getRole(target);
-            int year = PlayerDataHelper.getLevel(target);
-            PacketDistributor.sendToPlayer(target, new PlayerDataPayload(role, year));
+            int level = PlayerDataHelper.getLevel(target);
+            PacketDistributor.sendToPlayer(target, new PlayerDataPayload(role, level));
             PacketDistributor.sendToPlayer(target, registryPayload);
             LOGGER.info("[SetWeaver] Synced player data and registry to {}",
                     target.getName().getString());
         } else {
             // Server-wide /reload — broadcast registry to all connected players
             for (ServerPlayer player : event.getPlayerList().getPlayers()) {
-                // Also re-sync each player's own role/year
+                // Also re-sync each player's own role/level
                 String role = PlayerDataHelper.getRole(player);
-                int year = PlayerDataHelper.getLevel(player);
-                PacketDistributor.sendToPlayer(player, new PlayerDataPayload(role, year));
+                int level = PlayerDataHelper.getLevel(player);
+                PacketDistributor.sendToPlayer(player, new PlayerDataPayload(role, level));
                 PacketDistributor.sendToPlayer(player, registryPayload);
             }
             LOGGER.info("[SetWeaver] Broadcast registry sync to all players after /reload");
@@ -125,7 +125,7 @@ public class SetWeaver
     }
 
     /**
-     * Syncs the player's role and year to their client on login.
+     * Syncs the player's role and level to their client on login.
      * This populates the {@link com.gilfort.setweaver.network.ClientPlayerDataCache}
      * so tooltips work immediately without waiting for the tick event.
      */
@@ -133,8 +133,8 @@ public class SetWeaver
     public void onPlayerLogin(PlayerEvent.PlayerLoggedInEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
             String role = PlayerDataHelper.getRole(player);
-            int year = PlayerDataHelper.getLevel(player);
-            PacketDistributor.sendToPlayer(player, new PlayerDataPayload(role, year));
+            int level = PlayerDataHelper.getLevel(player);
+            PacketDistributor.sendToPlayer(player, new PlayerDataPayload(role, level));
             PacketDistributor.sendToPlayer(player, new RegistrySyncPayload(
                     ArmorSetDataRegistry.serializeToJson(),
                     AttributePackageManager.serializeToJson()));

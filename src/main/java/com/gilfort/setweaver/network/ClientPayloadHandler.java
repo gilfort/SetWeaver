@@ -31,7 +31,7 @@ public class ClientPayloadHandler {
     public static void handlePlayerData(final PlayerDataPayload payload,
                                         final IPayloadContext context) {
         context.enqueueWork(() -> {
-            ClientPlayerDataCache.update(payload.role(), payload.year());
+            ClientPlayerDataCache.update(payload.role(), payload.level());
         });
     }
 
