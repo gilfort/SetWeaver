@@ -1095,9 +1095,16 @@ public class SetsManagerScreen extends Screen {
     }
 
     private void onReload() {
-        // Reload set definitions from config files
-        SetWeaverReloadListener.loadAllEffects();
-        buildListEntries();
+        // Send reload request to server — server reloads from disk and
+        // broadcasts updated registry to all clients via RegistrySyncPayload.
+        net.neoforged.neoforge.network.PacketDistributor.sendToServer(
+                new com.gilfort.setweaver.network.ReloadRequestPayload()
+        );
+        // Rebuild UI after sync arrives (handleRegistrySync updates the registry)
+        // Small delay: schedule rebuild on next tick
+        if (this.minecraft != null) {
+            this.minecraft.tell(this::buildListEntries);
+        }
     }
 
     private void onValidate() {

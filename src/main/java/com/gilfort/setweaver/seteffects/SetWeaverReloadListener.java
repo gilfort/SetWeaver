@@ -32,7 +32,7 @@ import java.util.concurrent.Executor;
  *   config/setweaver/set_armor/naturalist/3/arsnouveau__tier2armor.json
  *
  * Filename is interpreted as an item tag:
- *   "setweaver__magiccloth_armor" -> "setweaver:magiccloth_armor"
+ *   "zauberei__magiccloth_armor" -> "zauberei:magiccloth_armor"
  *
  * Tag-only (no armor material compatibility).
  */
@@ -157,7 +157,7 @@ public class SetWeaverReloadListener implements PreparableReloadListener {
               The double underscore (__) becomes a colon (:) → item tag reference
 
               Examples:
-                setweaver__magiccloth_armor.json  → tag "setweaver:magiccloth_armor"
+                zauberei__magiccloth_armor.json  → tag "zauberei:magiccloth_armor"
                 c__iron_armors.json              → tag "c:iron_armors"
                 minecraft__gold_armor.json       → tag "minecraft:gold_armor"
 
@@ -229,26 +229,9 @@ public class SetWeaverReloadListener implements PreparableReloadListener {
 
             ── INGAME COMMANDS ──────────────────────────────────────────────
 
-              /setweaver reload                      Reload all set definitions
-              /setweaver debug sets                  Show all loaded sets for your role/level
-              /setweaver debug tag <tag>             Debug a specific tag match
-              /setweaver setrole <role>            Set your role
-              /setweaver setlevel <level>              Set your level
-              /setweaver checkrole <player>         Check a player's role
-              /setweaver checklevel <player>           Check a player's level
-              /setweaver sets list                   List all loaded set definitions
-              /setweaver sets create <tag>           Generate a template JSON for a tag
-              /setweaver sets validate               Check all JSON files for errors
-              /setweaver sets info <tag>             Show full details of a set definition
-
-            ── TIPS ─────────────────────────────────────────────────────────
-
-              • Use /setweaver sets create to generate template files quickly
-              • Use /setweaver sets validate after editing to catch errors
-              • Use /setweaver reload to apply changes without restart
-              • The tooltip shows [SHIFT] to reveal set bonuses on any armor piece
-              • If an item belongs to multiple sets, SHIFT+Scroll to browse them
-              • "displayName" is optional — without it, the tag path is auto-formatted
+              /setweaver editor                             -- opens the editor (need to be OP on a server)
+              /setweaver set <playername> <role> <level>    -- sets role and level for player
+              /setweaver check <playername>                 -- shows current role and level for selected player
 
             ══════════════════════════════════════════════════════════════════
             """;
@@ -263,7 +246,7 @@ public class SetWeaverReloadListener implements PreparableReloadListener {
     private static void writeExampleFile() {
         File exampleDir = new File(BASE_DIR, "_example" + File.separator + "1");
         exampleDir.mkdirs();
-        File exampleFile = new File(exampleDir, "setweaver__example_armor.json.disabled");
+        File exampleFile = new File(exampleDir, "zauberei__example_armor.json.disabled");
         if (exampleFile.exists()) return;
 
         String content = """

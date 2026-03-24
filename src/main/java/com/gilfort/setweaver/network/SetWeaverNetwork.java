@@ -13,9 +13,9 @@ public class SetWeaverNetwork {
     public static void registerPayload(final RegisterPayloadHandlersEvent event) {
         final PayloadRegistrar registrar = event.registrar("1");
 
-        // Use lambdas instead of method references to avoid eager class-loading
-        // of ClientPayloadHandler (which imports client-only classes like Screen)
-        // on the dedicated server during payload registration.
+        // ── Server → Client ──────────────────────────────────────────────
+        // Use lambdas to avoid eager class-loading of ClientPayloadHandler
+        // (which imports client-only classes) on the dedicated server.
         registrar.playToClient(
                 OpenSetsGuiPayload.TYPE,
                 OpenSetsGuiPayload.STREAM_CODEC,
@@ -34,18 +34,23 @@ public class SetWeaverNetwork {
                 (payload, context) -> ClientPayloadHandler.handleRegistrySync(payload, context)
         );
 
-        // Client → Server: save a set definition
+        // ── Client → Server ──────────────────────────────────────────────
         registrar.playToServer(
                 SaveSetPayload.TYPE,
                 SaveSetPayload.STREAM_CODEC,
                 ServerPayloadHandler::handleSaveSet
         );
 
-        // Client → Server: create/update a custom item tag
         registrar.playToServer(
                 SaveTagPayload.TYPE,
                 SaveTagPayload.STREAM_CODEC,
                 ServerPayloadHandler::handleSaveTag
+        );
+
+        registrar.playToServer(
+                ReloadRequestPayload.TYPE,
+                ReloadRequestPayload.STREAM_CODEC,
+                ServerPayloadHandler::handleReloadRequest
         );
     }
 }
