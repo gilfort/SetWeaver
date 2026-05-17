@@ -15,6 +15,7 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.SharedSuggestionProvider;
+import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.network.PacketDistributor;
@@ -29,6 +30,7 @@ import java.util.List;
  * /setweaver
  *   ├── editor                              Open the Sets Manager GUI (OP 2+)
  *   ├── set &lt;player&gt; &lt;role&gt; &lt;year&gt;        Set role + year for a player (OP 2+)
+ *   ├── setyear &lt;targets&gt; &lt;year&gt;          Set only year for entity selector (OP 2+)
  *   └── check &lt;player&gt;                     Show role + year of a player (OP 2+)
  * </pre>
  */
@@ -71,6 +73,13 @@ public class CommandHandler {
                                                 .suggests(ROLE_SUGGESTIONS)
                                                 .then(Commands.argument("level", IntegerArgumentType.integer(1))
                                                         .executes(CommandHandler::setPlayerDataCommand)))))
+
+                        // ── setyear <targets> <year> ──────────────────────────
+                        .then(Commands.literal("setyear")
+                                .requires(src -> src.hasPermission(2))
+                                .then(Commands.argument("targets", EntityArgument.players())
+                                        .then(Commands.argument("year", IntegerArgumentType.integer(1))
+                                                .executes(CommandHandler::setYearCommand))))
 
                         // ── check <player> ───────────────────────────────────
                         .then(Commands.literal("check")
@@ -137,6 +146,31 @@ public class CommandHandler {
                 .append(Component.literal("  Level: ").withStyle(ChatFormatting.GRAY))
                 .append(Component.literal(String.valueOf(level)).withStyle(ChatFormatting.YELLOW)), true);
         return Command.SINGLE_SUCCESS;
+    }
+
+    /**
+     * Sets only the year (level) for one or more target players. Role unchanged.
+     * Usage: /setweaver setyear &lt;targets&gt; &lt;year&gt;
+     */
+    private static int setYearCommand(CommandContext<CommandSourceStack> context) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+        var targets = EntityArgument.getPlayers(context, "targets");
+        int year = IntegerArgumentType.getInteger(context, "year");
+        CommandSourceStack source = context.getSource();
+
+        for (ServerPlayer target : targets) {
+            PlayerDataHelper.setLevel(target, year);
+            String role = PlayerDataHelper.getRole(target);
+            PacketDistributor.sendToPlayer(target, new PlayerDataPayload(role, year));
+
+            String name = target.getGameProfile().getName();
+            source.sendSuccess(() -> Component.literal("[SetWeaver] ")
+                    .withStyle(ChatFormatting.AQUA)
+                    .append(Component.literal(name).withStyle(ChatFormatting.WHITE))
+                    .append(Component.literal(" → ").withStyle(ChatFormatting.DARK_GRAY))
+                    .append(Component.literal("Year: ").withStyle(ChatFormatting.GRAY))
+                    .append(Component.literal(String.valueOf(year)).withStyle(ChatFormatting.YELLOW)), true);
+        }
+        return targets.size();
     }
 
     /**
