@@ -67,10 +67,10 @@ public class CommandHandler {
                         // ── set <player> <role> <level> ───────────────────────
                         .then(Commands.literal("set")
                                 .requires(src -> src.hasPermission(2))
-                                .then(Commands.argument("target", StringArgumentType.word())
-                                        .suggests(PLAYER_SUGGESTIONS)
+                                .then(Commands.argument("target", EntityArgument.player())
                                         .then(Commands.argument("role", StringArgumentType.word())
                                                 .suggests(ROLE_SUGGESTIONS)
+                                                .executes(CommandHandler::setRoleOnlyCommand)
                                                 .then(Commands.argument("level", IntegerArgumentType.integer(1))
                                                         .executes(CommandHandler::setPlayerDataCommand)))))
 
@@ -119,17 +119,12 @@ public class CommandHandler {
      * Sets the role and level for a target player.
      * Usage: /setweaver set &lt;player&gt; &lt;role&gt; &lt;level&gt;
      */
-    private static int setPlayerDataCommand(CommandContext<CommandSourceStack> context) {
-        String targetName = StringArgumentType.getString(context, "target");
+    private static int setPlayerDataCommand(CommandContext<CommandSourceStack> context) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+        ServerPlayer target = EntityArgument.getPlayer(context, "target");
+        String targetName = target.getGameProfile().getName();
         String role = StringArgumentType.getString(context, "role");
         int level = IntegerArgumentType.getInteger(context, "level");
         CommandSourceStack source = context.getSource();
-
-        ServerPlayer target = source.getServer().getPlayerList().getPlayerByName(targetName);
-        if (target == null) {
-            source.sendFailure(Component.literal("Player '" + targetName + "' not found or not online."));
-            return 0;
-        }
 
         PlayerDataHelper.setRole(target, role);
         PlayerDataHelper.setLevel(target, level);
@@ -145,6 +140,29 @@ public class CommandHandler {
                 .append(Component.literal(role).withStyle(ChatFormatting.GREEN))
                 .append(Component.literal("  Level: ").withStyle(ChatFormatting.GRAY))
                 .append(Component.literal(String.valueOf(level)).withStyle(ChatFormatting.YELLOW)), true);
+        return Command.SINGLE_SUCCESS;
+    }
+
+    /**
+     * Sets only the role for a target player. Year unchanged.
+     * Usage: /setweaver set &lt;player&gt; &lt;role&gt;
+     */
+    private static int setRoleOnlyCommand(CommandContext<CommandSourceStack> context) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+        ServerPlayer target = EntityArgument.getPlayer(context, "target");
+        String targetName = target.getGameProfile().getName();
+        String role = StringArgumentType.getString(context, "role");
+        CommandSourceStack source = context.getSource();
+
+        PlayerDataHelper.setRole(target, role);
+        int level = PlayerDataHelper.getLevel(target);
+        PacketDistributor.sendToPlayer(target, new PlayerDataPayload(role, level));
+
+        source.sendSuccess(() -> Component.literal("[SetWeaver] ")
+                .withStyle(ChatFormatting.AQUA)
+                .append(Component.literal(targetName).withStyle(ChatFormatting.WHITE))
+                .append(Component.literal(" → ").withStyle(ChatFormatting.DARK_GRAY))
+                .append(Component.literal("Role: ").withStyle(ChatFormatting.GRAY))
+                .append(Component.literal(role).withStyle(ChatFormatting.GREEN)), true);
         return Command.SINGLE_SUCCESS;
     }
 
