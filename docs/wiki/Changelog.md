@@ -33,6 +33,7 @@ previous version. Version lines: `1.x` = Minecraft 1.21.1 (branch `1.21.1`).
 - Players without role or level now see bonuses of "All Roles / All Levels" sets in the tooltip.
 - Sets were loaded twice on server start; login sync was sent twice; role/level was sent every 3 seconds.
 - Files are read and written as UTF-8.
+- Server log messages about invalid set files are written in English instead of showing translation keys.
 
 ### Removed
 - Unused template code (empty config, data generators).
