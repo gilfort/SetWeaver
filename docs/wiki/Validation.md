@@ -1,7 +1,9 @@
 # Validation
 
-Sets Manager → **Validate** checks every `.json` file in `config/setweaver/set_armor/` on the server and lists the
-result per file on the right. The same checks run on every load; problems are also written to the server log.
+The editor entry **Validation** (left column) shows the server's check of every `.json` file in
+`config/setweaver/set_armor/`, one result per file; clicking a file opens its set. The set and scope rows show the
+number of problems (`!n`), and the form of a set lists them at the end. The same checks run on every load;
+problems are also written to the server log.
 
 | Result | Meaning |
 |---|---|

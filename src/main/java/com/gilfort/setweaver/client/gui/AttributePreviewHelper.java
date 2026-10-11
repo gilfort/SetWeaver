@@ -73,7 +73,7 @@ public final class AttributePreviewHelper {
      * @param id a namespaced id
      * @return the path part of the id
      */
-    public static String shortName(String id) {
+    private static String shortName(String id) {
         if (id == null) {
             return "?";
         }
