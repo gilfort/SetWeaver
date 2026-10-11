@@ -1,305 +1,182 @@
 package com.gilfort.setweaver.seteffects;
 
 import com.gilfort.setweaver.SetWeaver;
-import com.gilfort.setweaver.datagen.PlayerDataHelper;
+import com.gilfort.setweaver.util.PlayerDataHelper;
 import net.minecraft.core.Holder;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.tags.TagKey;
-import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ArmorItem;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
-import net.neoforged.neoforge.network.PacketDistributor;
-import com.gilfort.setweaver.network.PlayerDataPayload;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 
-public class ArmorEffects {
+/**
+ * Applies the set bonuses on the server: every {@link #TICK_INTERVAL} ticks each player's worn pieces are counted
+ * per set tag and the effects and attribute modifiers of the reached threshold are applied. Several sets stack.
+ *
+ * <p>Attribute modifiers are only touched when they change. Removing and re-adding a max health modifier would
+ * otherwise cut the player's health down to the base maximum on every update.</p>
+ */
+public final class ArmorEffects {
 
-    /** Interval in ticks between set-effect recalculations (60 ticks = 3 seconds). */
-    private static final int TICK_INTERVAL = 60;
+    /** Interval in ticks between set bonus updates (3 seconds). */
+    public static final int TICK_INTERVAL = 60;
 
-    /** Per-player cooldown tracker. Stores the last server tick when effects were applied. */
-    private static final Map<UUID, Long> lastAppliedTick = Collections.synchronizedMap(new HashMap<>());
+    /** Duration of applied effects; longer than {@link #TICK_INTERVAL} so they never run out while worn. */
+    private static final int EFFECT_DURATION = 200;
 
-    public static void register(IEventBus eventBus) {
+    /** Attributes that currently carry modifiers of this mod, per player. Server thread only. */
+    private static final Map<UUID, Set<Holder<Attribute>>> MODIFIED_ATTRIBUTES = new HashMap<>();
+
+    private ArmorEffects() {
+    }
+
+    /**
+     * Registers the tick and logout listeners.
+     *
+     * @param modEventBus the mod event bus (unused, kept for a uniform registration call)
+     */
+    public static void register(IEventBus modEventBus) {
         NeoForge.EVENT_BUS.addListener(ArmorEffects::onPlayerTick);
         NeoForge.EVENT_BUS.addListener(ArmorEffects::onPlayerLogout);
     }
 
-    /** Clean up per-player tracking data on logout to prevent memory leaks. */
-    public static void onPlayerLogout(net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerLoggedOutEvent event) {
-        lastAppliedTick.remove(event.getEntity().getUUID());
+    private static void onPlayerLogout(PlayerEvent.PlayerLoggedOutEvent event) {
+        MODIFIED_ATTRIBUTES.remove(event.getEntity().getUUID());
     }
 
-    public static void onPlayerTick(PlayerTickEvent.Post event) {
-        if (!event.getEntity().level().isClientSide() && event.getEntity() instanceof ServerPlayer player) {
+    private static void onPlayerTick(PlayerTickEvent.Post event) {
+        if (!(event.getEntity() instanceof ServerPlayer player)) {
+            return;
+        }
+        // Spread players over the interval instead of updating everyone in the same tick
+        if ((player.tickCount + player.getId()) % TICK_INTERVAL != 0) {
+            return;
+        }
+        update(player);
+    }
 
-            long currentTick = player.getServer().getTickCount();
-            long lastTick = lastAppliedTick.getOrDefault(player.getUUID(), 0L);
+    /**
+     * Recalculates and applies all set bonuses of a player.
+     *
+     * @param player the player
+     */
+    public static void update(ServerPlayer player) {
+        Map<Holder<Attribute>, Map<ResourceLocation, AttributeModifier>> wanted = new HashMap<>();
 
-            if (currentTick - lastTick < TICK_INTERVAL) {
-                return;
-            }
-
-            lastAppliedTick.put(player.getUUID(), currentTick);
-
+        if (ArmorPieces.wearsAny(player)) {
             String role = PlayerDataHelper.getRole(player);
             int level = PlayerDataHelper.getLevel(player);
+            for (ArmorSetDataRegistry.SetEntry entry : ArmorSetDataRegistry.server().getApplicableEntries(role, level)) {
+                int worn = ArmorPieces.countWorn(player, entry.tagKey());
+                if (worn == 0) {
+                    continue;
+                }
+                ArmorSetData.PartData part = entry.data().getActivePartData(worn);
+                if (part != null) {
+                    applyEffects(player, part);
+                    collectModifiers(part, entry.tag(), wanted);
+                }
+            }
+        }
+        syncModifiers(player, wanted);
+    }
 
-            applySetBasedEffects(player, role, level);
+    private static void applyEffects(ServerPlayer player, ArmorSetData.PartData part) {
+        if (part.getEffects() == null) {
+            return;
+        }
+        for (ArmorSetData.EffectData effect : part.getEffects()) {
+            SetIds.effect(effect.getEffect()).ifPresent(holder -> player.addEffect(
+                    new MobEffectInstance(holder, EFFECT_DURATION, effect.getAmplifier(), false, false, true)));
+        }
+    }
 
-            // Sync role/level to client cache (ensures tooltip works on dedicated servers)
-            PacketDistributor.sendToPlayer(player, new PlayerDataPayload(role, level));
+    private static void collectModifiers(ArmorSetData.PartData part, String tag,
+                                         Map<Holder<Attribute>, Map<ResourceLocation, AttributeModifier>> wanted) {
+        if (part.getAttributes() == null) {
+            return;
+        }
+        List<ArmorSetData.AttributeData> attributes = part.getAttributes();
+        for (int i = 0; i < attributes.size(); i++) {
+            ArmorSetData.AttributeData data = attributes.get(i);
+            var holder = SetIds.attribute(data.getAttribute());
+            var operation = SetIds.operation(data.getModifier());
+            if (holder.isEmpty() || operation.isEmpty()) {
+                continue;
+            }
+            // The index keeps ids unique when the same attribute appears twice in one set
+            ResourceLocation id = modifierId(holder.get().key().location().getPath(),
+                    data.getModifier().toLowerCase(Locale.ROOT) + "_" + i, tag);
+            wanted.computeIfAbsent(holder.get(), h -> new HashMap<>())
+                    .put(id, new AttributeModifier(id, data.getValue(), operation.get()));
+        }
+    }
+
+    /** Brings the player's modifiers of this mod in line with {@code wanted}, touching only what changed. */
+    private static void syncModifiers(ServerPlayer player,
+                                      Map<Holder<Attribute>, Map<ResourceLocation, AttributeModifier>> wanted) {
+        Set<Holder<Attribute>> touched = new HashSet<>(wanted.keySet());
+        touched.addAll(MODIFIED_ATTRIBUTES.getOrDefault(player.getUUID(), Set.of()));
+
+        for (Holder<Attribute> attribute : touched) {
+            AttributeInstance instance = player.getAttribute(attribute);
+            if (instance == null) {
+                continue;
+            }
+            Map<ResourceLocation, AttributeModifier> target = wanted.getOrDefault(attribute, Map.of());
+            for (AttributeModifier existing : new ArrayList<>(instance.getModifiers())) {
+                if (SetWeaver.MODID.equals(existing.id().getNamespace()) && !target.containsKey(existing.id())) {
+                    instance.removeModifier(existing.id());
+                }
+            }
+            for (AttributeModifier modifier : target.values()) {
+                AttributeModifier existing = instance.getModifier(modifier.id());
+                if (existing == null) {
+                    instance.addTransientModifier(modifier);
+                } else if (existing.amount() != modifier.amount() || existing.operation() != modifier.operation()) {
+                    instance.removeModifier(modifier.id());
+                    instance.addTransientModifier(modifier);
+                }
+            }
+        }
+
+        if (wanted.isEmpty()) {
+            MODIFIED_ATTRIBUTES.remove(player.getUUID());
+        } else {
+            MODIFIED_ATTRIBUTES.put(player.getUUID(), new HashSet<>(wanted.keySet()));
         }
     }
 
     /**
-     * Tag-only set logic:
-     * - Read registered tags for (role, level)
-     * - Count how many worn armor pieces match each tag
-     * - Remove old Zauberei modifiers ONCE
-     * - Apply effects + attributes for each matching set
+     * Builds the id of a set modifier.
+     *
+     * @param attributePath path of the attribute id
+     * @param operation     operation name plus index
+     * @param setTag        the set tag
+     * @return a modifier id in this mod's namespace
      */
-    private static void applySetBasedEffects(Player player, String role, int level) {
-        // Early skip: no armor worn at all
-        boolean anyArmor = false;
-        for (ItemStack stack : player.getArmorSlots()) {
-            if (!stack.isEmpty() && stack.getItem() instanceof ArmorItem) {
-                anyArmor = true;
-                break;
-            }
-        }
-        if (!anyArmor) {
-            removeOldSetModifiers(player);
-            return;
-        }
-
-        Set<String> registeredTags = ArmorSetDataRegistry.getRegisteredTags(role.toLowerCase(), level);
-        if (registeredTags.isEmpty()) {
-            removeOldSetModifiers(player);
-            return;
-        }
-
-        Map<String, Integer> tagCounts = new HashMap<>();
-
-        // Count worn pieces per tag
-        for (String tagString : registeredTags) {
-            ResourceLocation tagLoc;
-            try {
-                tagLoc = ResourceLocation.parse(tagString);
-            } catch (Exception e) {
-                // Should not happen if validated in reload listener
-                continue;
-            }
-
-            TagKey<Item> tagKey = TagKey.create(Registries.ITEM, tagLoc);
-
-            int count = 0;
-            for (ItemStack stack : player.getArmorSlots()) {
-                if (!stack.isEmpty() && stack.is(tagKey)) {
-                    count++;
-                }
-            }
-
-            if (count > 0) {
-                tagCounts.put(tagString, count);
-            }
-        }
-
-        if (tagCounts.isEmpty()) {
-            removeOldSetModifiers(player);
-            return;
-        }
-
-        // Remove old modifiers ONCE, then apply all sets (stacking allowed)
-        removeOldSetModifiers(player);
-
-        for (Map.Entry<String, Integer> entry : tagCounts.entrySet()) {
-            String tagString = entry.getKey();
-            int count = entry.getValue();
-
-            ArmorSetData data = ArmorSetDataRegistry.getData(role.toLowerCase(), level, tagString);
-            if (data == null || data.getParts() == null) {
-                continue;
-            }
-
-            ArmorSetData.PartData partData = data.getActivePartData(count);
-            if (partData == null) {
-                // Player hasn't reached the first threshold yet
-                continue;
-            }
-
-
-            applySetEffects(player, partData);
-            applyAttributes(player, partData, tagString);
-        }
+    public static ResourceLocation modifierId(String attributePath, String operation, String setTag) {
+        return SetWeaver.id(sanitize(attributePath + "_" + operation + "_" + setTag));
     }
 
-    private static void applyAttributes(Player player, ArmorSetData.PartData partData, String tagString) {
-        if (partData.getAttributes() == null) {
-            return;
-        }
-
-        for (int i = 0; i < partData.getAttributes().size(); i++) {
-            ArmorSetData.AttributeData attrData = partData.getAttributes().get(i);
-            String attributeName = attrData.getAttribute();
-            if (attributeName == null) continue;
-
-            Holder.Reference<Attribute> attributeHolder = getAttributeHolder(attributeName);
-            if (attributeHolder == null) {
-                continue;
-            }
-
-            AttributeModifier.Operation operation;
-            switch (attrData.getModifier().toLowerCase()) {
-                case "addition":
-                    operation = AttributeModifier.Operation.ADD_VALUE;
-                    break;
-                case "multiply":
-                case "multiply_base":
-                    operation = AttributeModifier.Operation.ADD_MULTIPLIED_BASE;
-                    break;
-                case "multiply_total":
-                    operation = AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL;
-                    break;
-                default:
-                    // invalid modifier type -> skip
-                    continue;
-            }
-
-            AttributeInstance attributeInstance = player.getAttribute(attributeHolder);
-            if (attributeInstance == null) {
-                continue;
-            }
-
-            // Index suffix ensures unique IDs when the same attribute appears multiple times
-            ResourceLocation modifierId = makeModifierId(attributeName, attrData.getModifier().toLowerCase() + "_" + i, tagString);
-            if (modifierId == null) {
-                continue;
-            }
-
-            AttributeModifier modifier = new AttributeModifier(
-                    modifierId,
-                    attrData.getValue(),
-                    operation
-            );
-
-            AttributeModifier existing = attributeInstance.getModifier(modifier.id());
-            if (existing == null) {
-                attributeInstance.addTransientModifier(modifier);
-            } else if (existing.amount() != modifier.amount()
-                    || existing.operation() != modifier.operation()) {
-                attributeInstance.removeModifier(modifier.id());
-                attributeInstance.addTransientModifier(modifier);
-            }
-        }
-    }
-
-    private static void removeOldSetModifiers(Player player) {
-        for (Attribute attribute : BuiltInRegistries.ATTRIBUTE) {
-            Optional<ResourceKey<Attribute>> optionalKey = BuiltInRegistries.ATTRIBUTE.getResourceKey(attribute);
-            if (optionalKey.isEmpty()) {
-                continue;
-            }
-
-            Holder.Reference<Attribute> attributeHolder = BuiltInRegistries.ATTRIBUTE.getHolderOrThrow(optionalKey.get());
-            AttributeInstance attributeInstance = player.getAttribute(attributeHolder);
-            if (attributeInstance == null) {
-                continue;
-            }
-
-            // Copy to avoid concurrent modification
-            List<AttributeModifier> modifiers = new ArrayList<>(attributeInstance.getModifiers());
-            for (AttributeModifier modifier : modifiers) {
-                ResourceLocation id = modifier.id();
-                if (id != null && SetWeaver.MODID.equals(id.getNamespace())) {
-                    attributeInstance.removeModifier(modifier);
-                }
-            }
-        }
-    }
-
-    private static Holder.Reference<Attribute> getAttributeHolder(String attributeName) {
-        ResourceLocation loc = tryMakeResourceLocation(attributeName);
-        if (loc == null) return null;
-
-        Attribute attribute = BuiltInRegistries.ATTRIBUTE.get(loc);
-        if (attribute == null) return null;
-
-        Optional<ResourceKey<Attribute>> optionalKey = BuiltInRegistries.ATTRIBUTE.getResourceKey(attribute);
-        return optionalKey.map(BuiltInRegistries.ATTRIBUTE::getHolderOrThrow).orElse(null);
-
-    }
-
-    public static ResourceLocation makeModifierId(String attributeName, String operation, String setScope) {
-        int index = attributeName.indexOf(":");
-        if (index == -1) {
-            return null;
-        }
-        String attrPath = attributeName.substring(index + 1);
-        String sanitizedScope = sanitizeForResourceLocation(setScope);
-        String path = attrPath + "_" + operation + "_" + sanitizedScope;
-        return ResourceLocation.fromNamespaceAndPath(SetWeaver.MODID, path);
-    }
-
-    private static String sanitizeForResourceLocation(String input) {
-        if (input == null) return "unknown";
-        return input.toLowerCase()
+    private static String sanitize(String input) {
+        return input.toLowerCase(Locale.ROOT)
                 .replaceAll("[^a-z0-9_/.-]", "_")
                 .replaceAll("_+", "_")
                 .replaceAll("^_|_$", "");
-    }
-
-
-    private static void applySetEffects(Player player, ArmorSetData.PartData partData) {
-        if (partData.getEffects() == null) {
-            return;
-        }
-
-        for (ArmorSetData.EffectData effectData : partData.getEffects()) {
-            ResourceLocation effectLoc = tryMakeResourceLocation(effectData.getEffect());
-            if (effectLoc == null) {
-                continue;
-            }
-
-            MobEffect mobEffect = BuiltInRegistries.MOB_EFFECT.get(effectLoc);
-            if (mobEffect == null) {
-                continue;
-            }
-
-            int duration = 200; // 10 seconds
-            int amplifier = effectData.getAmplifier();
-
-            Optional<ResourceKey<MobEffect>> optionalKey = BuiltInRegistries.MOB_EFFECT.getResourceKey(mobEffect);
-            if (optionalKey.isEmpty()) {
-                continue;
-            }
-            Holder.Reference<MobEffect> effectHolder = BuiltInRegistries.MOB_EFFECT.getHolderOrThrow(optionalKey.get());
-
-            player.addEffect(new MobEffectInstance(effectHolder, duration, amplifier, false, false, true));
-        }
-    }
-
-    private static ResourceLocation tryMakeResourceLocation(String name) {
-        if (name == null) return null;
-        String s = name.contains(":") ? name : "minecraft:" + name;
-        try {
-            return ResourceLocation.parse(s);
-        } catch (Exception e) {
-            return null;
-        }
     }
 }

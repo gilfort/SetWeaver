@@ -1,15 +1,18 @@
 package com.gilfort.setweaver.command;
 
-
-import com.gilfort.setweaver.datagen.PlayerDataHelper;
 import com.gilfort.setweaver.network.OpenSetsGuiPayload;
-import com.gilfort.setweaver.network.PlayerDataPayload;
+import com.gilfort.setweaver.network.ServerPayloadHandler;
+import com.gilfort.setweaver.network.SetWeaverSync;
 import com.gilfort.setweaver.seteffects.ArmorSetDataRegistry;
+import com.gilfort.setweaver.seteffects.SetFiles;
+import com.gilfort.setweaver.util.PlayerDataHelper;
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import com.mojang.brigadier.exceptions.DynamicCommandExceptionType;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
@@ -20,181 +23,99 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.network.PacketDistributor;
 
-import java.util.List;
+import java.util.Collection;
 
 /**
- * Command handler for the SetWeaver mod.
- *
- * <h3>Command Tree:</h3>
+ * The {@code /setweaver} command tree (all subcommands need operator level 2):
  * <pre>
- * /setweaver
- *   ├── editor                              Open the Sets Manager GUI (OP 2+)
- *   ├── set &lt;player&gt; &lt;role&gt; &lt;year&gt;        Set role + year for a player (OP 2+)
- *   ├── setyear &lt;targets&gt; &lt;year&gt;          Set only year for entity selector (OP 2+)
- *   └── check &lt;player&gt;                     Show role + year of a player (OP 2+)
+ * /setweaver editor                          open the Sets Manager
+ * /setweaver set &lt;player&gt; &lt;role&gt; [&lt;level&gt;]   set role (and level)
+ * /setweaver setyear &lt;players&gt; &lt;level&gt;      set only the level
+ * /setweaver check &lt;player&gt;                  show role and level
  * </pre>
  */
-public class CommandHandler {
+public final class CommandHandler {
 
-    // ═══════════════════════════════════════════════════════════════════════
-    //  SUGGESTION PROVIDERS
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /** Suggests all real role names from the registry (excludes wildcard). */
+    /** Suggests the roles used by loaded sets (without the wildcard). */
     public static final SuggestionProvider<CommandSourceStack> ROLE_SUGGESTIONS = (ctx, builder) ->
-            SharedSuggestionProvider.suggest(ArmorSetDataRegistry.getRoles(), builder);
+            SharedSuggestionProvider.suggest(ArmorSetDataRegistry.server().getRoles(), builder);
 
-    /** Suggests all currently online player names. */
-    public static final SuggestionProvider<CommandSourceStack> PLAYER_SUGGESTIONS = (ctx, builder) -> {
-        List<String> names = ctx.getSource().getServer().getPlayerList().getPlayers()
-                .stream().map(p -> p.getGameProfile().getName()).toList();
-        return SharedSuggestionProvider.suggest(names, builder);
-    };
+    private static final DynamicCommandExceptionType INVALID_ROLE = new DynamicCommandExceptionType(
+            role -> Component.translatable("message.setweaver.command.invalid_role", role));
 
-    // ═══════════════════════════════════════════════════════════════════════
-    //  COMMAND REGISTRATION
-    // ═══════════════════════════════════════════════════════════════════════
+    private CommandHandler() {
+    }
 
+    /**
+     * Registers the command tree.
+     *
+     * @param dispatcher the command dispatcher
+     */
     public static void registerCommands(CommandDispatcher<CommandSourceStack> dispatcher) {
-        dispatcher.register(
-                Commands.literal("setweaver")
-
-                        // ── editor ───────────────────────────────────────────
-                        .then(Commands.literal("editor")
-                                .requires(src -> src.hasPermission(2))
-                                .executes(ctx -> openSetsGui(ctx.getSource())))
-
-                        // ── set <player> <role> <level> ───────────────────────
-                        .then(Commands.literal("set")
-                                .requires(src -> src.hasPermission(2))
-                                .then(Commands.argument("target", StringArgumentType.word())
-                                        .suggests(PLAYER_SUGGESTIONS)
-                                        .then(Commands.argument("role", StringArgumentType.word())
-                                                .suggests(ROLE_SUGGESTIONS)
-                                                .then(Commands.argument("level", IntegerArgumentType.integer(1))
-                                                        .executes(CommandHandler::setPlayerDataCommand)))))
-
-                        // ── setyear <targets> <year> ──────────────────────────
-                        .then(Commands.literal("setyear")
-                                .requires(src -> src.hasPermission(2))
-                                .then(Commands.argument("targets", EntityArgument.players())
-                                        .then(Commands.argument("year", IntegerArgumentType.integer(1))
-                                                .executes(CommandHandler::setYearCommand))))
-
-                        // ── check <player> ───────────────────────────────────
-                        .then(Commands.literal("check")
-                                .requires(src -> src.hasPermission(2))
-                                .then(Commands.argument("target", StringArgumentType.word())
-                                        .suggests(PLAYER_SUGGESTIONS)
-                                        .executes(ctx -> checkPlayer(ctx.getSource(),
-                                                StringArgumentType.getString(ctx, "target")))))
-        );
+        dispatcher.register(Commands.literal("setweaver")
+                .requires(src -> src.hasPermission(ServerPayloadHandler.PERMISSION_LEVEL))
+                .then(Commands.literal("editor")
+                        .executes(ctx -> openEditor(ctx.getSource())))
+                .then(Commands.literal("set")
+                        .then(Commands.argument("target", EntityArgument.player())
+                                .then(Commands.argument("role", StringArgumentType.word())
+                                        .suggests(ROLE_SUGGESTIONS)
+                                        .executes(ctx -> setRole(ctx, null))
+                                        .then(Commands.argument("level", IntegerArgumentType.integer(1))
+                                                .executes(ctx -> setRole(ctx, IntegerArgumentType.getInteger(ctx, "level")))))))
+                .then(Commands.literal("setyear")
+                        .then(Commands.argument("targets", EntityArgument.players())
+                                .then(Commands.argument("level", IntegerArgumentType.integer(1))
+                                        .executes(CommandHandler::setLevel))))
+                .then(Commands.literal("check")
+                        .then(Commands.argument("target", EntityArgument.player())
+                                .executes(CommandHandler::check))));
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    //  COMMAND IMPLEMENTATIONS
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /**
-     * Opens the Sets Manager GUI for the executing player.
-     * Sends a network packet to the client to trigger the screen.
-     */
-    private static int openSetsGui(CommandSourceStack source) {
-        ServerPlayer player;
-        try {
-            player = source.getPlayerOrException();
-        } catch (Exception e) {
-            source.sendFailure(Component.literal("This command can only be used by a player."));
-            return 0;
-        }
-
+    private static int openEditor(CommandSourceStack source) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
         PacketDistributor.sendToPlayer(player, new OpenSetsGuiPayload());
-
-        source.sendSuccess(
-                () -> Component.literal("[SetWeaver] Opening Sets Manager..."), false);
-        return 1;
-    }
-
-    /**
-     * Sets the role and level for a target player.
-     * Usage: /setweaver set &lt;player&gt; &lt;role&gt; &lt;level&gt;
-     */
-    private static int setPlayerDataCommand(CommandContext<CommandSourceStack> context) {
-        String targetName = StringArgumentType.getString(context, "target");
-        String role = StringArgumentType.getString(context, "role");
-        int level = IntegerArgumentType.getInteger(context, "level");
-        CommandSourceStack source = context.getSource();
-
-        ServerPlayer target = source.getServer().getPlayerList().getPlayerByName(targetName);
-        if (target == null) {
-            source.sendFailure(Component.literal("Player '" + targetName + "' not found or not online."));
-            return 0;
-        }
-
-        PlayerDataHelper.setRole(target, role);
-        PlayerDataHelper.setLevel(target, level);
-
-        // Sync the updated role/level to the target player's client
-        PacketDistributor.sendToPlayer(target, new PlayerDataPayload(role, level));
-
-        source.sendSuccess(() -> Component.literal("[SetWeaver] ")
-                .withStyle(ChatFormatting.AQUA)
-                .append(Component.literal(targetName).withStyle(ChatFormatting.WHITE))
-                .append(Component.literal(" → ").withStyle(ChatFormatting.DARK_GRAY))
-                .append(Component.literal("Role: ").withStyle(ChatFormatting.GRAY))
-                .append(Component.literal(role).withStyle(ChatFormatting.GREEN))
-                .append(Component.literal("  Level: ").withStyle(ChatFormatting.GRAY))
-                .append(Component.literal(String.valueOf(level)).withStyle(ChatFormatting.YELLOW)), true);
         return Command.SINGLE_SUCCESS;
     }
 
-    /**
-     * Sets only the year (level) for one or more target players. Role unchanged.
-     * Usage: /setweaver setyear &lt;targets&gt; &lt;year&gt;
-     */
-    private static int setYearCommand(CommandContext<CommandSourceStack> context) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
-        var targets = EntityArgument.getPlayers(context, "targets");
-        int year = IntegerArgumentType.getInteger(context, "year");
-        CommandSourceStack source = context.getSource();
+    private static int setRole(CommandContext<CommandSourceStack> context, Integer level) throws CommandSyntaxException {
+        ServerPlayer target = EntityArgument.getPlayer(context, "target");
+        String role = ArmorSetDataRegistry.normalizeRole(StringArgumentType.getString(context, "role"));
+        if (!SetFiles.isValidRole(role)) {
+            throw INVALID_ROLE.create(role);
+        }
+        PlayerDataHelper.setRole(target, role);
+        if (level != null) {
+            PlayerDataHelper.setLevel(target, level);
+        }
+        SetWeaverSync.sendPlayerData(target);
 
+        int newLevel = PlayerDataHelper.getLevel(target);
+        context.getSource().sendSuccess(() -> Component.translatable("message.setweaver.command.set",
+                target.getDisplayName(), role, newLevel).withStyle(ChatFormatting.AQUA), true);
+        return Command.SINGLE_SUCCESS;
+    }
+
+    private static int setLevel(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        Collection<ServerPlayer> targets = EntityArgument.getPlayers(context, "targets");
+        int level = IntegerArgumentType.getInteger(context, "level");
         for (ServerPlayer target : targets) {
-            PlayerDataHelper.setLevel(target, year);
-            String role = PlayerDataHelper.getRole(target);
-            PacketDistributor.sendToPlayer(target, new PlayerDataPayload(role, year));
-
-            String name = target.getGameProfile().getName();
-            source.sendSuccess(() -> Component.literal("[SetWeaver] ")
-                    .withStyle(ChatFormatting.AQUA)
-                    .append(Component.literal(name).withStyle(ChatFormatting.WHITE))
-                    .append(Component.literal(" → ").withStyle(ChatFormatting.DARK_GRAY))
-                    .append(Component.literal("Year: ").withStyle(ChatFormatting.GRAY))
-                    .append(Component.literal(String.valueOf(year)).withStyle(ChatFormatting.YELLOW)), true);
+            PlayerDataHelper.setLevel(target, level);
+            SetWeaverSync.sendPlayerData(target);
+            context.getSource().sendSuccess(() -> Component.translatable("message.setweaver.command.setyear",
+                    target.getDisplayName(), level).withStyle(ChatFormatting.AQUA), true);
         }
         return targets.size();
     }
 
-    /**
-     * Displays the current role and level of a target player.
-     * Usage: /setweaver check &lt;player&gt;
-     */
-    private static int checkPlayer(CommandSourceStack source, String playerName) {
-        ServerPlayer target = source.getServer().getPlayerList().getPlayerByName(playerName);
-        if (target == null) {
-            source.sendFailure(Component.literal("Player '" + playerName + "' not found or not online."));
-            return 0;
-        }
-
+    private static int check(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        ServerPlayer target = EntityArgument.getPlayer(context, "target");
         String role = PlayerDataHelper.getRole(target);
         int level = PlayerDataHelper.getLevel(target);
-
-        source.sendSystemMessage(Component.literal("[SetWeaver] ")
-                .withStyle(ChatFormatting.AQUA)
-                .append(Component.literal(playerName).withStyle(ChatFormatting.WHITE))
-                .append(Component.literal(" → ").withStyle(ChatFormatting.DARK_GRAY))
-                .append(Component.literal("Role: ").withStyle(ChatFormatting.GRAY))
-                .append(Component.literal(role.isEmpty() ? "(not set)" : role).withStyle(ChatFormatting.GREEN))
-                .append(Component.literal("  Level: ").withStyle(ChatFormatting.GRAY))
-                .append(Component.literal(level == 0 ? "(not set)" : String.valueOf(level)).withStyle(ChatFormatting.YELLOW)));
-        return 1;
+        Component roleText = role.isEmpty() ? Component.translatable("message.setweaver.command.not_set") : Component.literal(role);
+        Component levelText = level == 0 ? Component.translatable("message.setweaver.command.not_set") : Component.literal(String.valueOf(level));
+        context.getSource().sendSuccess(() -> Component.translatable("message.setweaver.command.check",
+                target.getDisplayName(), roleText, levelText).withStyle(ChatFormatting.AQUA), false);
+        return Command.SINGLE_SUCCESS;
     }
 }

@@ -11,37 +11,54 @@ import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
-import java.util.function.UnaryOperator;
+/**
+ * Legacy data components inherited from Zauberei. SetWeaver no longer uses them, but they are persistent, so item
+ * stacks in existing worlds may still carry them. They stay registered so those stacks keep loading.
+ *
+ * @deprecated kept only for save compatibility; do not use in new code
+ */
+@Deprecated
+public final class ComponentRegistry {
 
-public class ComponentRegistry {
-    private static final DeferredRegister<DataComponentType<?>> COMPONENTS = DeferredRegister.create(Registries.DATA_COMPONENT_TYPE, SetWeaver.MODID);
+    private static final DeferredRegister<DataComponentType<?>> COMPONENTS =
+            DeferredRegister.create(Registries.DATA_COMPONENT_TYPE, SetWeaver.MODID);
 
+    /** @deprecated legacy, unused */
+    @Deprecated
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<Unit>> TRANSMOG =
+            COMPONENTS.register("transmog", () -> DataComponentType.<Unit>builder()
+                    .persistent(Unit.CODEC)
+                    .networkSynchronized(StreamCodec.unit(Unit.INSTANCE))
+                    .cacheEncoding()
+                    .build());
 
+    /** @deprecated legacy, unused */
+    @Deprecated
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<String>> ROLE =
+            COMPONENTS.register("role", () -> DataComponentType.<String>builder()
+                    .persistent(Codec.STRING)
+                    .networkSynchronized(ByteBufCodecs.STRING_UTF8)
+                    .cacheEncoding()
+                    .build());
+
+    /** @deprecated legacy, unused */
+    @Deprecated
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<Integer>> LEVEL =
+            COMPONENTS.register("level", () -> DataComponentType.<Integer>builder()
+                    .persistent(Codec.INT)
+                    .networkSynchronized(ByteBufCodecs.VAR_INT)
+                    .cacheEncoding()
+                    .build());
+
+    private ComponentRegistry() {
+    }
+
+    /**
+     * Registers the components.
+     *
+     * @param eventBus the mod event bus
+     */
     public static void register(IEventBus eventBus) {
         COMPONENTS.register(eventBus);
     }
-
-    private static <T> DeferredHolder<DataComponentType<?>, DataComponentType<T>> register(String pName, UnaryOperator<DataComponentType.Builder<T>> pBuilder) {
-        return COMPONENTS.register(pName, () -> pBuilder.apply(DataComponentType.builder()).build());
-    }
-
-    public static final DeferredHolder<DataComponentType<?>, DataComponentType<Unit>> CLOTHING_ALT =
-            register("transmog",
-                    (builder) -> builder
-                            .persistent(Unit.CODEC)
-                            .networkSynchronized(StreamCodec.unit(Unit.INSTANCE)).cacheEncoding());
-
-    public static final DeferredHolder<DataComponentType<?>, DataComponentType<String>> ROLE =
-            register("role",
-                    b -> b.persistent(Codec.STRING)
-                            .networkSynchronized(ByteBufCodecs.STRING_UTF8)
-                            .cacheEncoding()
-            );
-
-    public static final DeferredHolder<DataComponentType<?>, DataComponentType<Integer>> LEVEL =
-            register("level",
-                    b -> b.persistent(Codec.INT)
-                            .networkSynchronized(ByteBufCodecs.VAR_INT)
-                            .cacheEncoding()
-            );
 }

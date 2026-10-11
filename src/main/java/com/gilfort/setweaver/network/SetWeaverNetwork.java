@@ -1,56 +1,50 @@
 package com.gilfort.setweaver.network;
 
 import com.gilfort.setweaver.SetWeaver;
+import com.gilfort.setweaver.client.ClientHooks;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
+/**
+ * Registers all packets. Client handlers are lambdas into {@link ClientHooks}, so a dedicated server never loads
+ * client classes.
+ */
 @EventBusSubscriber(modid = SetWeaver.MODID)
-public class SetWeaverNetwork {
+public final class SetWeaverNetwork {
 
+    /** Protocol version; bump when packets change incompatibly. */
+    public static final String PROTOCOL_VERSION = "2";
+
+    private SetWeaverNetwork() {
+    }
+
+    /**
+     * Registers the packets.
+     *
+     * @param event the registration event
+     */
     @SubscribeEvent
-    public static void registerPayload(final RegisterPayloadHandlersEvent event) {
-        final PayloadRegistrar registrar = event.registrar("1");
+    public static void registerPayloads(RegisterPayloadHandlersEvent event) {
+        PayloadRegistrar registrar = event.registrar(PROTOCOL_VERSION);
 
-        // ── Server → Client ──────────────────────────────────────────────
-        // Use lambdas to avoid eager class-loading of ClientPayloadHandler
-        // (which imports client-only classes) on the dedicated server.
-        registrar.playToClient(
-                OpenSetsGuiPayload.TYPE,
-                OpenSetsGuiPayload.STREAM_CODEC,
-                (payload, context) -> ClientPayloadHandler.handleOpenSetsGui(payload, context)
-        );
+        // Server → client
+        registrar.playToClient(OpenSetsGuiPayload.TYPE, OpenSetsGuiPayload.STREAM_CODEC,
+                (payload, context) -> ClientHooks.handleOpenSetsGui(payload, context));
+        registrar.playToClient(PlayerDataPayload.TYPE, PlayerDataPayload.STREAM_CODEC,
+                (payload, context) -> ClientHooks.handlePlayerData(payload, context));
+        registrar.playToClient(RegistrySyncPayload.TYPE, RegistrySyncPayload.STREAM_CODEC,
+                (payload, context) -> ClientHooks.handleRegistrySync(payload, context));
+        registrar.playToClient(ValidationResultsPayload.TYPE, ValidationResultsPayload.STREAM_CODEC,
+                (payload, context) -> ClientHooks.handleValidationResults(payload, context));
 
-        registrar.playToClient(
-                PlayerDataPayload.TYPE,
-                PlayerDataPayload.STREAM_CODEC,
-                (payload, context) -> ClientPayloadHandler.handlePlayerData(payload, context)
-        );
-
-        registrar.playToClient(
-                RegistrySyncPayload.TYPE,
-                RegistrySyncPayload.STREAM_CODEC,
-                (payload, context) -> ClientPayloadHandler.handleRegistrySync(payload, context)
-        );
-
-        // ── Client → Server ──────────────────────────────────────────────
-        registrar.playToServer(
-                SaveSetPayload.TYPE,
-                SaveSetPayload.STREAM_CODEC,
-                ServerPayloadHandler::handleSaveSet
-        );
-
-        registrar.playToServer(
-                SaveTagPayload.TYPE,
-                SaveTagPayload.STREAM_CODEC,
-                ServerPayloadHandler::handleSaveTag
-        );
-
-        registrar.playToServer(
-                ReloadRequestPayload.TYPE,
-                ReloadRequestPayload.STREAM_CODEC,
-                ServerPayloadHandler::handleReloadRequest
-        );
+        // Client → server
+        registrar.playToServer(SaveSetPayload.TYPE, SaveSetPayload.STREAM_CODEC, ServerPayloadHandler::handleSaveSet);
+        registrar.playToServer(DeleteSetPayload.TYPE, DeleteSetPayload.STREAM_CODEC, ServerPayloadHandler::handleDeleteSet);
+        registrar.playToServer(SaveTagPayload.TYPE, SaveTagPayload.STREAM_CODEC, ServerPayloadHandler::handleSaveTag);
+        registrar.playToServer(SavePackagesPayload.TYPE, SavePackagesPayload.STREAM_CODEC, ServerPayloadHandler::handleSavePackages);
+        registrar.playToServer(ValidateRequestPayload.TYPE, ValidateRequestPayload.STREAM_CODEC, ServerPayloadHandler::handleValidateRequest);
+        registrar.playToServer(ReloadRequestPayload.TYPE, ReloadRequestPayload.STREAM_CODEC, ServerPayloadHandler::handleReloadRequest);
     }
 }
