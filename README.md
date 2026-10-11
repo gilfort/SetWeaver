@@ -3,7 +3,7 @@
 [![Build](https://github.com/gilfort/SetWeaver/actions/workflows/build.yml/badge.svg)](https://github.com/gilfort/SetWeaver/actions/workflows/build.yml)
 
 A NeoForge mod for Minecraft 1.21.1 that adds armor set bonuses: mob effects and attribute modifiers for wearing
-several pieces of a set. A set is any item tag, so armor from every mod works.
+several pieces of a set. This is the maintenance branch `1.21.1`; Minecraft 26.3 is on `main`. A set is any item tag, so armor from every mod works.
 
 **📖 Documentation: [Wiki](https://github.com/gilfort/SetWeaver/wiki)**
 

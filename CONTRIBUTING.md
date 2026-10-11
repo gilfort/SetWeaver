@@ -1,5 +1,8 @@
 # Contributing to SetWeaver
 
+> **Maintenance branch:** this is the Minecraft 1.21.1 branch (mod versions `1.x`). It only receives bug fixes
+> (`fix/1.21.1-<short-name>` → PR into `1.21.1`). New features go to `main` (newest Minecraft version).
+
 These rules apply to everyone working on the repository — people, local AI sessions and **cloud / remote AI
 sessions** alike. Cloud sessions start from a fresh clone and only see committed files, so this file is the
 binding reference for them.
