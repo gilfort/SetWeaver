@@ -43,7 +43,7 @@ Sets Manager → **Packages**.
       "name": "Defense",
       "enabled": true,
       "priority": 10,
-      "attributes": [ "minecraft:generic.armor", "minecraft:generic.armor_toughness" ]
+      "attributes": [ "minecraft:armor", "minecraft:armor_toughness" ]
     }
   ]
 }

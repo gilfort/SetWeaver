@@ -23,7 +23,7 @@ public final class ClientHooks {
 
     /** Opens the Sets Manager. */
     public static void handleOpenSetsGui(OpenSetsGuiPayload payload, IPayloadContext context) {
-        context.enqueueWork(() -> Minecraft.getInstance().setScreen(new SetsManagerScreen()));
+        context.enqueueWork(() -> Minecraft.getInstance().gui.setScreen(new SetsManagerScreen()));
     }
 
     /** Stores the local player's role and level. */
@@ -38,7 +38,7 @@ public final class ClientHooks {
             AttributePackageManager.client().deserializeFromJson(payload.packagesJson());
             SetWeaver.LOGGER.debug("[SetWeaver] Received {} set definition(s)",
                     ArmorSetDataRegistry.client().getAllEntries().size());
-            var screen = Minecraft.getInstance().screen;
+            var screen = Minecraft.getInstance().gui.screen();
             if (screen instanceof SetsManagerScreen manager) {
                 manager.onRegistrySynced();
             } else if (screen instanceof PackageEditorScreen packages) {
@@ -50,7 +50,7 @@ public final class ClientHooks {
     /** Shows server validation results in an open Sets Manager. */
     public static void handleValidationResults(ValidationResultsPayload payload, IPayloadContext context) {
         context.enqueueWork(() -> {
-            if (Minecraft.getInstance().screen instanceof SetsManagerScreen manager) {
+            if (Minecraft.getInstance().gui.screen() instanceof SetsManagerScreen manager) {
                 manager.showValidationResults(payload.results());
             }
         });

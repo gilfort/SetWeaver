@@ -6,8 +6,10 @@ binding reference for them.
 
 ## Target
 
-- Minecraft **1.21.1**, NeoForge 21.1.x (`gradle.properties` → `neo_version`), Java **21**
-- Mod id `setweaver`, base package `com.gilfort.setweaver`, ids created with `SetWeaver.id(path)`
+- Minecraft **26.3**, NeoForge 26.3.x (`gradle.properties` → `neo_version`), Java **25** (auto-provisioned toolchain)
+- Mod id `setweaver`, base package `com.gilfort.setweaver`, Mojang official names (`Identifier`, not
+  `ResourceLocation`); ids created with `SetWeaver.id(path)`
+- Minecraft 1.21.1 (mod versions `1.x`) is maintained on the branch `1.21.1`.
 - No dependencies on other mods.
 - Each registry gets its own class with a `register(IEventBus)` method (or a public `DeferredRegister`), wired in the
   `SetWeaver` constructor.
@@ -32,9 +34,10 @@ binding reference for them.
    `component/ComponentRegistry` is such a legacy class.
 7. `@EventBusSubscriber` without `bus`: FML routes mod bus events automatically.
 8. **Client / server separation:** client-only classes (screens, tooltip handler) live in `client/` and are reached
-   from common code only through `client/ClientHooks` (packet handlers registered as lambdas), so a dedicated
-   server never loads them. Server and client keep separate registries (`ArmorSetDataRegistry.server()` /
-   `.client()`) — never share mutable static state between the sides.
+   from common code only through `client/ClientHooks`; client-bound packet handlers are registered in
+   `client/SetWeaverClient` (`RegisterClientPayloadHandlersEvent`), so a dedicated server never loads them.
+   Server and client keep separate registries (`ArmorSetDataRegistry.server()` / `.client()`) — never share mutable
+   static state between the sides.
 9. **Packets from clients are untrusted:** check operator level 2, validate every path (`SetFiles`), id and size,
    and never throw from a handler.
 
@@ -97,6 +100,22 @@ Cloud sessions (claude.ai/code, auto-created `ccr-*` branches) follow the **same
   first story that adds testable server logic sets it up. Until then, manual checks in `docs/TESTING.md` cover
   each change.
 - A story PR needs a green build.
+
+## 26.3 API notes
+
+- Screens: `extractBackground` / `extractRenderState(GuiGraphicsExtractor, …)`; text via `graphics.text(…)` with ARGB
+  colors (alpha!); `graphics.nextStratum()` puts later elements above earlier text.
+- Input: `mouseClicked(MouseButtonEvent, boolean doubleClick)`, `keyPressed(KeyEvent)` (`event.isEscape()`,
+  `isConfirmation()`, `isUp()`), `charTyped(CharacterEvent)`; modifier state via `Minecraft.getInstance().hasShiftDown()`.
+- Screens are opened with `minecraft.gui.setScreen(…)`, the current one is `minecraft.gui.screen()`; packets to the
+  server go through `ClientPacketDistributor.sendToServer`.
+- Permissions: `Commands.hasPermission(Commands.LEVEL_GAMEMASTERS)` / `player.permissions().hasPermission(Permissions.COMMANDS_GAMEMASTER)`.
+- Reload listeners: `AddServerReloadListenersEvent.addListener(id, listener)`.
+- Attribute ids have no `generic.` prefix any more; `SetIds.attribute` resolves old ids.
+- A dedicated server does not load mod lang files: log translatable messages with `LogText.of`.
+- Dev runs use `runs/<run name>`; the old `run/` folder belongs to 1.21.1 and is left alone.
+- Dedicated server smoke test without accepting the EULA: add `smokeTest { type = "gameTestServer" }` to the runs
+  temporarily, run `./gradlew runSmokeTest`, check `runs/smokeTest/logs/latest.log` for `ERROR`, remove the run.
 
 ## Commands
 

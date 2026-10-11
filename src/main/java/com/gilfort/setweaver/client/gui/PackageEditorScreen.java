@@ -5,13 +5,14 @@ import com.gilfort.setweaver.seteffects.AttributePackageManager;
 import com.gilfort.setweaver.seteffects.AttributePackageManager.AttributePackage;
 import com.google.gson.Gson;
 import net.minecraft.ChatFormatting;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
-import net.neoforged.neoforge.network.PacketDistributor;
+import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -103,7 +104,6 @@ public class PackageEditorScreen extends Screen {
 
         priorityBox = new EditBox(this.font, rightX + 55, rightY + rowSpacing * 2, 40, 14, Component.translatable("gui.setweaver.packages.priority"));
         priorityBox.setMaxLength(4);
-        priorityBox.setFilter(s -> s.matches("\\d*"));
         priorityBox.setResponder(value -> {
             if (selected() != null && !value.isEmpty() && Integer.parseInt(value) != selected().getPriority()) {
                 selected().setPriority(Integer.parseInt(value));
@@ -132,8 +132,8 @@ public class PackageEditorScreen extends Screen {
     }
 
     @Override
-    public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        super.renderBackground(graphics, mouseX, mouseY, partialTick);
+    public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+        super.extractBackground(graphics, mouseX, mouseY, partialTick);
         int totalW = this.width - 2 * PANEL_MARGIN;
         int contentH = this.height - 2 * PANEL_MARGIN - 28;
         int leftPanelW = (int) (totalW * 0.35);
@@ -144,18 +144,18 @@ public class PackageEditorScreen extends Screen {
     }
 
     @Override
-    public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        super.render(graphics, mouseX, mouseY, partialTick);
+    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+        super.extractRenderState(graphics, mouseX, mouseY, partialTick);
         renderLeftPanel(graphics, mouseX, mouseY);
         renderRightPanel(graphics, mouseX, mouseY);
     }
 
-    private void renderLeftPanel(GuiGraphics graphics, int mouseX, int mouseY) {
+    private void renderLeftPanel(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
         toggleBounds = null;
         deleteBounds = null;
         graphics.enableScissor(leftX, leftY, leftX + leftW, leftY + leftH);
         if (packages.isEmpty()) {
-            graphics.drawString(this.font, Component.translatable("gui.setweaver.packages.none").withStyle(ChatFormatting.ITALIC),
+            graphics.text(this.font, Component.translatable("gui.setweaver.packages.none").withStyle(ChatFormatting.ITALIC),
                     leftX + 5, leftY + 5, GuiUtil.COLOR_GRAY, false);
         }
         int end = Math.min(packages.size(), leftScroll + maxLinesLeft);
@@ -168,74 +168,76 @@ public class PackageEditorScreen extends Screen {
                 graphics.fill(leftX, y - 1, leftX + leftW, y + lineHeight - 1, GuiUtil.COLOR_HOVER);
             }
             String indicator = pkg.isEnabled() ? "● " : "○ ";
-            graphics.drawString(this.font, indicator, leftX + 3, y, pkg.isEnabled() ? COLOR_ENABLED : COLOR_DISABLED, false);
+            graphics.text(this.font, indicator, leftX + 3, y, pkg.isEnabled() ? COLOR_ENABLED : COLOR_DISABLED, false);
             int x = leftX + 3 + this.font.width(indicator);
             String name = GuiUtil.truncate(this.font, pkg.getName() == null || pkg.getName().isBlank()
                     ? GuiUtil.tr("gui.setweaver.packages.unnamed") : pkg.getName(), leftW - 60);
-            graphics.drawString(this.font, name, x, y, GuiUtil.COLOR_TEXT, false);
-            graphics.drawString(this.font, " [" + pkg.getPriority() + "]", x + this.font.width(name), y, GuiUtil.COLOR_GRAY, false);
+            graphics.text(this.font, name, x, y, GuiUtil.COLOR_TEXT, false);
+            graphics.text(this.font, " [" + pkg.getPriority() + "]", x + this.font.width(name), y, GuiUtil.COLOR_GRAY, false);
 
             if (i == selectedIndex) {
                 int iconX = leftX + leftW - 24;
                 toggleBounds = new int[]{iconX, y, 10, 10};
-                graphics.drawString(this.font, pkg.isEnabled() ? "○" : "●", iconX, y,
+                graphics.text(this.font, pkg.isEnabled() ? "○" : "●", iconX, y,
                         GuiUtil.hit(toggleBounds, mouseX, mouseY) ? 0xFF0088CC : GuiUtil.COLOR_GRAY, false);
                 deleteBounds = new int[]{iconX + 12, y, 10, 10};
-                graphics.drawString(this.font, "✖", iconX + 12, y, GuiUtil.hit(deleteBounds, mouseX, mouseY) ? 0xFFFF0000 : 0xFF773333, false);
+                graphics.text(this.font, "✖", iconX + 12, y, GuiUtil.hit(deleteBounds, mouseX, mouseY) ? 0xFFFF0000 : 0xFF773333, false);
             }
         }
         graphics.disableScissor();
         GuiUtil.drawScrollbar(graphics, leftX + leftW - 3, leftY, leftH, packages.size(), maxLinesLeft, leftScroll);
     }
 
-    private void renderRightPanel(GuiGraphics graphics, int mouseX, int mouseY) {
+    private void renderRightPanel(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
         attrDeleteBounds.clear();
         graphics.enableScissor(rightX, rightY, rightX + rightW, rightY + rightH);
         AttributePackage pkg = selected();
         if (pkg == null) {
-            graphics.drawString(this.font, Component.translatable("gui.setweaver.packages.select").withStyle(ChatFormatting.ITALIC),
+            graphics.text(this.font, Component.translatable("gui.setweaver.packages.select").withStyle(ChatFormatting.ITALIC),
                     rightX + 5, rightY + 5, GuiUtil.COLOR_GRAY, false);
             graphics.disableScissor();
             return;
         }
-        graphics.drawString(this.font, Component.translatable("gui.setweaver.packages.edit").withStyle(ChatFormatting.BOLD),
+        graphics.text(this.font, Component.translatable("gui.setweaver.packages.edit").withStyle(ChatFormatting.BOLD),
                 rightX + 3, rightY, GuiUtil.COLOR_TEXT, false);
-        graphics.drawString(this.font, GuiUtil.tr("gui.setweaver.packages.name"), rightX + 3, rightY + rowSpacing + 3, GuiUtil.COLOR_TEXT, false);
-        graphics.drawString(this.font, GuiUtil.tr("gui.setweaver.packages.priority"), rightX + 3, rightY + rowSpacing * 2 + 3, GuiUtil.COLOR_TEXT, false);
-        graphics.drawString(this.font, GuiUtil.tr("gui.setweaver.packages.priority_hint"), rightX + 100, rightY + rowSpacing * 2 + 3, GuiUtil.COLOR_GRAY, false);
+        graphics.text(this.font, GuiUtil.tr("gui.setweaver.packages.name"), rightX + 3, rightY + rowSpacing + 3, GuiUtil.COLOR_TEXT, false);
+        graphics.text(this.font, GuiUtil.tr("gui.setweaver.packages.priority"), rightX + 3, rightY + rowSpacing * 2 + 3, GuiUtil.COLOR_TEXT, false);
+        graphics.text(this.font, GuiUtil.tr("gui.setweaver.packages.priority_hint"), rightX + 100, rightY + rowSpacing * 2 + 3, GuiUtil.COLOR_GRAY, false);
         String statusLabel = GuiUtil.tr("gui.setweaver.packages.status") + " ";
-        graphics.drawString(this.font, statusLabel, rightX + 3, rightY + rowSpacing * 3 + 3, GuiUtil.COLOR_TEXT, false);
-        graphics.drawString(this.font, GuiUtil.tr(pkg.isEnabled() ? "gui.setweaver.packages.enabled" : "gui.setweaver.packages.disabled"),
+        graphics.text(this.font, statusLabel, rightX + 3, rightY + rowSpacing * 3 + 3, GuiUtil.COLOR_TEXT, false);
+        graphics.text(this.font, GuiUtil.tr(pkg.isEnabled() ? "gui.setweaver.packages.enabled" : "gui.setweaver.packages.disabled"),
                 rightX + 3 + this.font.width(statusLabel), rightY + rowSpacing * 3 + 3, pkg.isEnabled() ? COLOR_ENABLED : COLOR_DISABLED, false);
 
         int headerY = rightY + rowSpacing * 4;
-        graphics.drawString(this.font, Component.translatable("gui.setweaver.packages.attributes").withStyle(ChatFormatting.BOLD),
+        graphics.text(this.font, Component.translatable("gui.setweaver.packages.attributes").withStyle(ChatFormatting.BOLD),
                 rightX + 3, headerY, GuiUtil.COLOR_TEXT, false);
         List<String> attributes = pkg.getAttributes();
         int startY = headerY + lineHeight;
         int maxLines = Math.max(1, (rightY + rightH - startY) / lineHeight);
         rightScroll = Math.clamp(rightScroll, 0, Math.max(0, attributes.size() - maxLines));
         if (attributes.isEmpty()) {
-            graphics.drawString(this.font, Component.translatable("gui.setweaver.packages.no_attributes").withStyle(ChatFormatting.ITALIC),
+            graphics.text(this.font, Component.translatable("gui.setweaver.packages.no_attributes").withStyle(ChatFormatting.ITALIC),
                     rightX + 8, startY, GuiUtil.COLOR_GRAY, false);
         }
         for (int i = rightScroll; i < attributes.size() && i - rightScroll < maxLines; i++) {
             int y = startY + (i - rightScroll) * lineHeight;
             String id = attributes.get(i);
             String name = "▸ " + AttributePreviewHelper.attributeName(id) + " ";
-            graphics.drawString(this.font, name, rightX + 8, y, GuiUtil.COLOR_TEXT, false);
-            graphics.drawString(this.font, GuiUtil.truncate(this.font, "(" + id + ")", rightW - this.font.width(name) - 30),
+            graphics.text(this.font, name, rightX + 8, y, GuiUtil.COLOR_TEXT, false);
+            graphics.text(this.font, GuiUtil.truncate(this.font, "(" + id + ")", rightW - this.font.width(name) - 30),
                     rightX + 8 + this.font.width(name), y, GuiUtil.COLOR_GRAY, false);
             int[] bounds = {rightX + rightW - 12, y, 10, 10, i};
-            graphics.drawString(this.font, "✖", bounds[0], y, GuiUtil.hit(bounds, mouseX, mouseY) ? 0xFFFF0000 : 0xFF773333, false);
+            graphics.text(this.font, "✖", bounds[0], y, GuiUtil.hit(bounds, mouseX, mouseY) ? 0xFFFF0000 : 0xFF773333, false);
             attrDeleteBounds.add(bounds);
         }
         graphics.disableScissor();
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (super.mouseClicked(mouseX, mouseY, button)) {
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        double mouseX = event.x();
+        double mouseY = event.y();
+        if (super.mouseClicked(event, doubleClick)) {
             return true;
         }
         AttributePackage pkg = selected();
@@ -302,12 +304,12 @@ public class PackageEditorScreen extends Screen {
         }
         List<SearchableListPopup.Entry<String>> entries = new ArrayList<>();
         BuiltInRegistries.ATTRIBUTE.entrySet().forEach(e -> {
-            String id = e.getKey().location().toString();
+            String id = e.getKey().identifier().toString();
             String name = Component.translatable(e.getValue().getDescriptionId()).getString();
             entries.add(new SearchableListPopup.Entry<>(id, Component.literal(name + " (" + id + ")"), name + " " + id));
         });
         entries.sort(Comparator.comparing(e -> e.displayName().getString()));
-        this.minecraft.setScreen(new SearchableListPopup<>(Component.translatable("gui.setweaver.packages.add_attribute"), this, entries, id -> {
+        this.minecraft.gui.setScreen(new SearchableListPopup<>(Component.translatable("gui.setweaver.packages.add_attribute"), this, entries, id -> {
             if (!pkg.getAttributes().contains(id)) {
                 List<String> attributes = new ArrayList<>(pkg.getAttributes());
                 attributes.add(id);
@@ -318,7 +320,7 @@ public class PackageEditorScreen extends Screen {
     }
 
     private void save() {
-        PacketDistributor.sendToServer(new SavePackagesPayload(GSON.toJson(packages)));
+        ClientPacketDistributor.sendToServer(new SavePackagesPayload(GSON.toJson(packages)));
         dirty = false;
     }
 
@@ -337,7 +339,7 @@ public class PackageEditorScreen extends Screen {
 
     @Override
     public void onClose() {
-        this.minecraft.setScreen(parent);
+        this.minecraft.gui.setScreen(parent);
     }
 
     @Override

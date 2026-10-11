@@ -3,7 +3,7 @@ package com.gilfort.setweaver.seteffects;
 import com.gilfort.setweaver.SetWeaver;
 import com.gilfort.setweaver.util.PlayerDataHelper;
 import net.minecraft.core.Holder;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.ai.attributes.Attribute;
@@ -75,7 +75,7 @@ public final class ArmorEffects {
      * @param player the player
      */
     public static void update(ServerPlayer player) {
-        Map<Holder<Attribute>, Map<ResourceLocation, AttributeModifier>> wanted = new HashMap<>();
+        Map<Holder<Attribute>, Map<Identifier, AttributeModifier>> wanted = new HashMap<>();
 
         if (ArmorPieces.wearsAny(player)) {
             String role = PlayerDataHelper.getRole(player);
@@ -106,7 +106,7 @@ public final class ArmorEffects {
     }
 
     private static void collectModifiers(ArmorSetData.PartData part, String tag,
-                                         Map<Holder<Attribute>, Map<ResourceLocation, AttributeModifier>> wanted) {
+                                         Map<Holder<Attribute>, Map<Identifier, AttributeModifier>> wanted) {
         if (part.getAttributes() == null) {
             return;
         }
@@ -119,7 +119,7 @@ public final class ArmorEffects {
                 continue;
             }
             // The index keeps ids unique when the same attribute appears twice in one set
-            ResourceLocation id = modifierId(holder.get().key().location().getPath(),
+            Identifier id = modifierId(holder.get().key().identifier().getPath(),
                     data.getModifier().toLowerCase(Locale.ROOT) + "_" + i, tag);
             wanted.computeIfAbsent(holder.get(), h -> new HashMap<>())
                     .put(id, new AttributeModifier(id, data.getValue(), operation.get()));
@@ -128,7 +128,7 @@ public final class ArmorEffects {
 
     /** Brings the player's modifiers of this mod in line with {@code wanted}, touching only what changed. */
     private static void syncModifiers(ServerPlayer player,
-                                      Map<Holder<Attribute>, Map<ResourceLocation, AttributeModifier>> wanted) {
+                                      Map<Holder<Attribute>, Map<Identifier, AttributeModifier>> wanted) {
         Set<Holder<Attribute>> touched = new HashSet<>(wanted.keySet());
         touched.addAll(MODIFIED_ATTRIBUTES.getOrDefault(player.getUUID(), Set.of()));
 
@@ -137,7 +137,7 @@ public final class ArmorEffects {
             if (instance == null) {
                 continue;
             }
-            Map<ResourceLocation, AttributeModifier> target = wanted.getOrDefault(attribute, Map.of());
+            Map<Identifier, AttributeModifier> target = wanted.getOrDefault(attribute, Map.of());
             for (AttributeModifier existing : new ArrayList<>(instance.getModifiers())) {
                 if (SetWeaver.MODID.equals(existing.id().getNamespace()) && !target.containsKey(existing.id())) {
                     instance.removeModifier(existing.id());
@@ -169,7 +169,7 @@ public final class ArmorEffects {
      * @param setTag        the set tag
      * @return a modifier id in this mod's namespace
      */
-    public static ResourceLocation modifierId(String attributePath, String operation, String setTag) {
+    public static Identifier modifierId(String attributePath, String operation, String setTag) {
         return SetWeaver.id(sanitize(attributePath + "_" + operation + "_" + setTag));
     }
 

@@ -5,7 +5,7 @@ import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -96,7 +96,7 @@ public final class ArmorSetDataRegistry {
      * @return the entry, or {@code null} if {@code tag} is not a valid id
      */
     public static SetEntry createEntry(String role, int level, String tag, ArmorSetData data) {
-        ResourceLocation id = ResourceLocation.tryParse(tag);
+        Identifier id = Identifier.tryParse(tag);
         if (id == null || data == null) {
             return null;
         }

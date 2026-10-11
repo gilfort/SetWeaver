@@ -11,10 +11,8 @@ import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.resources.PreparableReloadListener;
-import net.minecraft.server.packs.resources.ResourceManager;
-import net.minecraft.util.profiling.ProfilerFiller;
 
 import java.io.IOException;
 import java.io.Reader;
@@ -72,12 +70,11 @@ public class SetWeaverReloadListener implements PreparableReloadListener {
             .create();
 
     @Override
-    public CompletableFuture<Void> reload(PreparationBarrier barrier, ResourceManager resourceManager,
-                                          ProfilerFiller preparationsProfiler, ProfilerFiller reloadProfiler,
-                                          Executor backgroundExecutor, Executor gameExecutor) {
-        return CompletableFuture.runAsync(() -> { }, backgroundExecutor)
+    public CompletableFuture<Void> reload(SharedState currentReload, Executor taskExecutor,
+                                          PreparationBarrier barrier, Executor reloadExecutor) {
+        return CompletableFuture.runAsync(() -> { }, taskExecutor)
                 .thenCompose(barrier::wait)
-                .thenRunAsync(SetWeaverReloadListener::loadAllEffects, gameExecutor);
+                .thenRunAsync(SetWeaverReloadListener::loadAllEffects, reloadExecutor);
     }
 
     /**
@@ -168,7 +165,7 @@ public class SetWeaverReloadListener implements PreparableReloadListener {
             return error(relativePath, Component.translatable("message.setweaver.validation.bad_location"));
         }
 
-        ResourceLocation tag = SetFiles.tagFromFileName(file.getFileName().toString());
+        Identifier tag = SetFiles.tagFromFileName(file.getFileName().toString());
         if (tag == null) {
             return error(relativePath, Component.translatable("message.setweaver.validation.bad_file_name"));
         }
@@ -235,7 +232,11 @@ public class SetWeaverReloadListener implements PreparableReloadListener {
                     if (SetIds.attribute(attribute.getAttribute()).isEmpty()) {
                         problems.add(Component.translatable("message.setweaver.validation.unknown_attribute", key, String.valueOf(attribute.getAttribute())));
                         attributes.remove();
-                    } else if (SetIds.operation(attribute.getModifier()).isEmpty()) {
+                        continue;
+                    }
+                    // Store the current id, e.g. minecraft:armor for the old minecraft:generic.armor
+                    attribute.setAttribute(SetIds.canonicalAttributeId(attribute.getAttribute()).orElseThrow());
+                    if (SetIds.operation(attribute.getModifier()).isEmpty()) {
                         problems.add(Component.translatable("message.setweaver.validation.unknown_modifier", key, String.valueOf(attribute.getModifier())));
                         attributes.remove();
                     }
@@ -285,7 +286,7 @@ public class SetWeaverReloadListener implements PreparableReloadListener {
                 "parts": {
                   "2Part": {
                     "Effects": [ { "Effect": "minecraft:speed", "Amplifier": 0 } ],
-                    "Attributes": [ { "attribute": "minecraft:generic.armor", "value": 2.0, "modifier": "addition" } ]
+                    "Attributes": [ { "attribute": "minecraft:armor", "value": 2.0, "modifier": "addition" } ]
                   },
                   "4Part": { ... }
                 }
@@ -307,7 +308,7 @@ public class SetWeaverReloadListener implements PreparableReloadListener {
               "parts": {
                 "2Part": {
                   "Effects": [ { "Effect": "minecraft:speed", "Amplifier": 0 } ],
-                  "Attributes": [ { "attribute": "minecraft:generic.armor", "value": 2.0, "modifier": "addition" } ]
+                  "Attributes": [ { "attribute": "minecraft:armor", "value": 2.0, "modifier": "addition" } ]
                 },
                 "4Part": {
                   "Effects": [
@@ -315,8 +316,8 @@ public class SetWeaverReloadListener implements PreparableReloadListener {
                     { "Effect": "minecraft:night_vision", "Amplifier": 0 }
                   ],
                   "Attributes": [
-                    { "attribute": "minecraft:generic.armor", "value": 5.0, "modifier": "addition" },
-                    { "attribute": "minecraft:generic.movement_speed", "value": 0.1, "modifier": "multiply_base" }
+                    { "attribute": "minecraft:armor", "value": 5.0, "modifier": "addition" },
+                    { "attribute": "minecraft:movement_speed", "value": 0.1, "modifier": "multiply_base" }
                   ]
                 }
               }

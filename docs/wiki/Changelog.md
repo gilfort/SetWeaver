@@ -1,7 +1,24 @@
 # Changelog
 
 All notable changes between mod versions, newest first. Each entry lists everything that changed since the
-previous version. Version lines: `1.x` = Minecraft 1.21.1 (branch `1.21.1`).
+previous version. Version lines: `2.x` = Minecraft 26.3 (branch `main`), `1.x` = Minecraft 1.21.1
+(branch `1.21.1`).
+
+---
+
+## 2.0.0 — Minecraft 26.3
+
+**Requires:** NeoForge 26.3, Java 25. Install on server and clients.
+
+### Changed
+- Ported to Minecraft 26.3 / NeoForge 26.3.
+- Vanilla attribute ids lost their `generic.` / `player.` prefix in Minecraft (e.g. `minecraft:generic.armor` →
+  `minecraft:armor`). Old ids in set files and `attribute_packages.json` keep working; the editor saves the new names.
+- The editor tag datapack `setweaver_custom` uses the new pack format (`min_format` / `max_format`); it is rewritten the
+  next time a tag is saved.
+
+### Upgrading a 1.21.1 world
+- Copy `config/setweaver/` along with the world. Role and level of players are kept.
 
 ---
 

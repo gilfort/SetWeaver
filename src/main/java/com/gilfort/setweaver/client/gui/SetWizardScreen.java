@@ -3,12 +3,14 @@ package com.gilfort.setweaver.client.gui;
 import com.gilfort.setweaver.seteffects.ArmorSetDataRegistry;
 import com.gilfort.setweaver.seteffects.SetFiles;
 import net.minecraft.ChatFormatting;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
-import org.lwjgl.glfw.GLFW;
+import net.minecraft.client.input.CharacterEvent;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.MouseButtonEvent;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -108,19 +110,19 @@ public class SetWizardScreen extends Screen {
     }
 
     @Override
-    public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        super.renderBackground(graphics, mouseX, mouseY, partialTick);
+    public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+        super.extractBackground(graphics, mouseX, mouseY, partialTick);
         GuiUtil.drawPanel(graphics, panelX, panelY, PANEL_WIDTH, PANEL_HEIGHT);
     }
 
     @Override
-    public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        super.render(graphics, mouseX, mouseY, partialTick);
+    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+        super.extractRenderState(graphics, mouseX, mouseY, partialTick);
         int x = panelX + PADDING;
-        graphics.drawString(this.font, this.title.copy().withStyle(ChatFormatting.BOLD), x, panelY + PADDING, GuiUtil.COLOR_TEXT, false);
+        graphics.text(this.font, this.title.copy().withStyle(ChatFormatting.BOLD), x, panelY + PADDING, GuiUtil.COLOR_TEXT, false);
         String[] labels = {"gui.setweaver.wizard.tag", "gui.setweaver.wizard.display_name", "gui.setweaver.wizard.role", "gui.setweaver.wizard.level"};
         for (int i = 0; i < labels.length; i++) {
-            graphics.drawString(this.font, GuiUtil.tr(labels[i]), x, rowY(i) + 6, GuiUtil.COLOR_TEXT, false);
+            graphics.text(this.font, GuiUtil.tr(labels[i]), x, rowY(i) + 6, GuiUtil.COLOR_TEXT, false);
         }
         if (statusMessage != null) {
             int statusY = rowY(4) + 8;
@@ -128,7 +130,7 @@ public class SetWizardScreen extends Screen {
             graphics.fill(x, statusY, x + statusW, statusY + 28, 0x22000000);
             int lineY = statusY + 4;
             for (String line : GuiUtil.wrap(this.font, statusMessage.getString(), statusW - 8)) {
-                graphics.drawString(this.font, line, x + 4, lineY, statusColor, false);
+                graphics.text(this.font, line, x + 4, lineY, statusColor, false);
                 lineY += 10;
             }
         }
@@ -138,7 +140,7 @@ public class SetWizardScreen extends Screen {
         List<SearchableListPopup.Entry<String>> entries = GuiUtil.armorItemTags().stream()
                 .map(tag -> new SearchableListPopup.Entry<>(tag.location().toString(), Component.literal(tag.location().toString())))
                 .toList();
-        this.minecraft.setScreen(new SearchableListPopup<>(Component.translatable("gui.setweaver.wizard.select_tag"), this, entries,
+        this.minecraft.gui.setScreen(new SearchableListPopup<>(Component.translatable("gui.setweaver.wizard.select_tag"), this, entries,
                 selected -> {
                     selectedTag = selected;
                     tagButton.setMessage(tagLabel());
@@ -152,7 +154,7 @@ public class SetWizardScreen extends Screen {
         for (String role : ArmorSetDataRegistry.client().getRoles()) {
             entries.add(new SearchableListPopup.Entry<>(role, Component.literal(role), role));
         }
-        this.minecraft.setScreen(new SearchableListPopup<>(Component.translatable("gui.setweaver.wizard.select_role"), this, entries,
+        this.minecraft.gui.setScreen(new SearchableListPopup<>(Component.translatable("gui.setweaver.wizard.select_role"), this, entries,
                 selected -> {
                     selectedRole = selected;
                     roleButton.setMessage(roleLabel(selected));
@@ -170,7 +172,7 @@ public class SetWizardScreen extends Screen {
         for (int level = 1; level <= MAX_LEVEL; level++) {
             entries.add(new SearchableListPopup.Entry<>(level, levelLabel(level), String.valueOf(level)));
         }
-        this.minecraft.setScreen(new SearchableListPopup<>(Component.translatable("gui.setweaver.wizard.select_level"), this, entries,
+        this.minecraft.gui.setScreen(new SearchableListPopup<>(Component.translatable("gui.setweaver.wizard.select_level"), this, entries,
                 selected -> {
                     selectedLevel = selected;
                     levelButton.setMessage(levelLabel(selected));
@@ -206,7 +208,7 @@ public class SetWizardScreen extends Screen {
             editorData.setDisplayName(displayName.trim());
         }
         // "Save & Exit" in the editor returns straight to the manager, "Back" to this wizard
-        this.minecraft.setScreen(new SetEditorScreen(this, parentScreen, editorData));
+        this.minecraft.gui.setScreen(new SetEditorScreen(this, parentScreen, editorData));
     }
 
     private Component tagLabel() {
@@ -233,16 +235,16 @@ public class SetWizardScreen extends Screen {
 
     @Override
     public void onClose() {
-        this.minecraft.setScreen(parentScreen);
+        this.minecraft.gui.setScreen(parentScreen);
     }
 
     @Override
-    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        if ((keyCode == GLFW.GLFW_KEY_ENTER || keyCode == GLFW.GLFW_KEY_KP_ENTER) && !displayNameBox.isFocused()) {
+    public boolean keyPressed(KeyEvent event) {
+        if (event.isConfirmation() && !displayNameBox.isFocused()) {
             next();
             return true;
         }
-        return super.keyPressed(keyCode, scanCode, modifiers);
+        return super.keyPressed(event);
     }
 
     @Override

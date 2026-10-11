@@ -1,12 +1,14 @@
 package com.gilfort.setweaver.client.gui;
 
 import net.minecraft.ChatFormatting;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
-import org.lwjgl.glfw.GLFW;
+import net.minecraft.client.input.CharacterEvent;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.MouseButtonEvent;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -28,7 +30,6 @@ public class SearchableListPopup<T> extends Screen {
     private static final int SEARCH_HEIGHT = 16;
     private static final int PADDING = 8;
     private static final int SCROLLBAR_W = 4;
-    private static final long DOUBLE_CLICK_MS = 400;
 
     private final Screen parentScreen;
     private final List<Entry<T>> allEntries;
@@ -43,8 +44,6 @@ public class SearchableListPopup<T> extends Screen {
     private int scrollOffset = 0;
     private int selectedIndex = -1;
     private int maxVisibleItems;
-    private long lastClickTime = 0;
-    private int lastClickIndex = -1;
 
     /**
      * One selectable row.
@@ -130,26 +129,26 @@ public class SearchableListPopup<T> extends Screen {
     }
 
     @Override
-    public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+    public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         graphics.fill(0, 0, this.width, this.height, GuiUtil.OVERLAY_DIM);
         GuiUtil.drawPanel(graphics, popupX, popupY, POPUP_WIDTH, POPUP_HEIGHT);
     }
 
     @Override
-    public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        super.render(graphics, mouseX, mouseY, partialTick);
-        graphics.drawString(this.font, this.title.copy().withStyle(ChatFormatting.BOLD),
+    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+        super.extractRenderState(graphics, mouseX, mouseY, partialTick);
+        graphics.text(this.font, this.title.copy().withStyle(ChatFormatting.BOLD),
                 popupX + PADDING, popupY + PADDING, GuiUtil.COLOR_TEXT, false);
         String count = filteredEntries.size() + "/" + allEntries.size();
-        graphics.drawString(this.font, count, popupX + POPUP_WIDTH - PADDING - this.font.width(count),
+        graphics.text(this.font, count, popupX + POPUP_WIDTH - PADDING - this.font.width(count),
                 popupY + PADDING + 1, GuiUtil.COLOR_GRAY, false);
         renderList(graphics, mouseX, mouseY);
     }
 
-    private void renderList(GuiGraphics graphics, int mouseX, int mouseY) {
+    private void renderList(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
         graphics.enableScissor(listX, listY, listX + listW, listY + listH);
         if (filteredEntries.isEmpty()) {
-            graphics.drawString(this.font, Component.translatable("gui.setweaver.no_results").withStyle(ChatFormatting.ITALIC),
+            graphics.text(this.font, Component.translatable("gui.setweaver.no_results").withStyle(ChatFormatting.ITALIC),
                     listX + 3, listY + 3, GuiUtil.COLOR_GRAY, false);
         }
         int rowW = listW - SCROLLBAR_W - 2;
@@ -162,7 +161,7 @@ public class SearchableListPopup<T> extends Screen {
                 graphics.fill(listX, y, listX + rowW, y + ITEM_HEIGHT, GuiUtil.COLOR_HOVER);
             }
             String text = GuiUtil.truncate(this.font, filteredEntries.get(i).displayName().getString(), rowW - 6);
-            graphics.drawString(this.font, text, listX + 3, y + 3, GuiUtil.COLOR_TEXT, false);
+            graphics.text(this.font, text, listX + 3, y + 3, GuiUtil.COLOR_TEXT, false);
         }
         graphics.disableScissor();
         GuiUtil.drawScrollbar(graphics, listX + listW - SCROLLBAR_W, listY, listH, filteredEntries.size(), maxVisibleItems, scrollOffset);
@@ -191,19 +190,18 @@ public class SearchableListPopup<T> extends Screen {
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (super.mouseClicked(mouseX, mouseY, button)) {
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        double mouseX = event.x();
+        double mouseY = event.y();
+        if (super.mouseClicked(event, doubleClick)) {
             return true;
         }
         if (GuiUtil.inside(mouseX, mouseY, listX, listY, listW - SCROLLBAR_W - 2, listH)) {
             int index = (int) ((mouseY - listY) / ITEM_HEIGHT) + scrollOffset;
             if (index >= 0 && index < filteredEntries.size()) {
-                long now = System.currentTimeMillis();
-                boolean doubleClick = index == lastClickIndex && now - lastClickTime < DOUBLE_CLICK_MS;
+                boolean sameRow = index == selectedIndex;
                 selectedIndex = index;
-                lastClickIndex = index;
-                lastClickTime = now;
-                if (doubleClick) {
+                if (doubleClick && sameRow) {
                     onConfirm();
                 }
             }
@@ -223,28 +221,19 @@ public class SearchableListPopup<T> extends Screen {
     }
 
     @Override
-    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        switch (keyCode) {
-            case GLFW.GLFW_KEY_ESCAPE -> {
-                onCancel();
-                return true;
-            }
-            case GLFW.GLFW_KEY_ENTER, GLFW.GLFW_KEY_KP_ENTER -> {
-                onConfirm();
-                return true;
-            }
-            case GLFW.GLFW_KEY_UP -> {
-                moveSelection(-1);
-                return true;
-            }
-            case GLFW.GLFW_KEY_DOWN -> {
-                moveSelection(1);
-                return true;
-            }
-            default -> {
-                return super.keyPressed(keyCode, scanCode, modifiers);
-            }
+    public boolean keyPressed(KeyEvent event) {
+        if (event.isEscape()) {
+            onCancel();
+        } else if (event.isConfirmation()) {
+            onConfirm();
+        } else if (event.isUp()) {
+            moveSelection(-1);
+        } else if (event.isDown()) {
+            moveSelection(1);
+        } else {
+            return super.keyPressed(event);
         }
+        return true;
     }
 
     private void moveSelection(int direction) {
@@ -264,13 +253,13 @@ public class SearchableListPopup<T> extends Screen {
     private void onConfirm() {
         if (selectedIndex >= 0 && selectedIndex < filteredEntries.size()) {
             T selected = filteredEntries.get(selectedIndex).value();
-            this.minecraft.setScreen(parentScreen);
+            this.minecraft.gui.setScreen(parentScreen);
             onSelect.accept(selected);
         }
     }
 
     private void onCancel() {
-        this.minecraft.setScreen(parentScreen);
+        this.minecraft.gui.setScreen(parentScreen);
     }
 
     @Override

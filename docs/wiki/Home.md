@@ -8,7 +8,8 @@ works. Bonuses can be limited to player roles and levels. Everything can be edit
 
 | Mod version | Minecraft | NeoForge | Branch | Status |
 |---|---|---|---|---|
-| 1.x | 1.21.1 | 21.1 | `1.21.1` | current |
+| 2.x | 26.3 | 26.3 | `main` | current |
+| 1.x | 1.21.1 | 21.1 | `1.21.1` | bug fixes only |
 
 Changes per version: [Changelog](Changelog).
 

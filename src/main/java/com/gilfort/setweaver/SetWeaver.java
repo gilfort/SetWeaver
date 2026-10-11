@@ -7,12 +7,12 @@ import com.gilfort.setweaver.seteffects.ArmorEffects;
 import com.gilfort.setweaver.seteffects.SetWeaverReloadListener;
 import com.gilfort.setweaver.util.SetWeaverPlayerData;
 import com.mojang.logging.LogUtils;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.neoforge.common.NeoForge;
-import net.neoforged.neoforge.event.AddReloadListenerEvent;
+import net.neoforged.neoforge.event.AddServerReloadListenersEvent;
 import net.neoforged.neoforge.event.OnDatapackSyncEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.slf4j.Logger;
@@ -50,13 +50,13 @@ public final class SetWeaver {
      * @param path the path
      * @return {@code setweaver:<path>}
      */
-    public static ResourceLocation id(String path) {
-        return ResourceLocation.fromNamespaceAndPath(MODID, path);
+    public static Identifier id(String path) {
+        return Identifier.fromNamespaceAndPath(MODID, path);
     }
 
     /** Loads the set definitions on server start and on {@code /reload}. */
-    private static void onAddReloadListeners(AddReloadListenerEvent event) {
-        event.addListener(new SetWeaverReloadListener());
+    private static void onAddReloadListeners(AddServerReloadListenersEvent event) {
+        event.addListener(id("set_definitions"), new SetWeaverReloadListener());
     }
 
     /** Syncs set definitions and player data on login (one player) and after {@code /reload} (everyone). */

@@ -1,11 +1,11 @@
 package com.gilfort.setweaver.client.gui;
 
 import com.gilfort.setweaver.seteffects.ArmorPieces;
-import com.mojang.datafixers.util.Pair;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.resources.language.I18n;
 import net.minecraft.core.Holder;
+import net.minecraft.core.HolderSet;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
@@ -55,9 +55,9 @@ public final class GuiUtil {
     }
 
     /** Draws a parchment panel with a 1 px border. */
-    public static void drawPanel(GuiGraphics graphics, int x, int y, int w, int h) {
+    public static void drawPanel(GuiGraphicsExtractor graphics, int x, int y, int w, int h) {
         graphics.fill(x, y, x + w, y + h, PANEL_BG);
-        graphics.renderOutline(x, y, w, h, PANEL_BORDER);
+        graphics.outline(x, y, w, h, PANEL_BORDER);
     }
 
     /**
@@ -70,7 +70,7 @@ public final class GuiUtil {
      * @param visible number of visible rows
      * @param offset  first visible row
      */
-    public static void drawScrollbar(GuiGraphics graphics, int x, int y, int height, int total, int visible, int offset) {
+    public static void drawScrollbar(GuiGraphicsExtractor graphics, int x, int y, int height, int total, int visible, int offset) {
         if (total <= visible || visible <= 0) {
             return;
         }
@@ -139,15 +139,15 @@ public final class GuiUtil {
     /** @return all item tags that contain at least one armor piece, sorted by id */
     public static List<TagKey<Item>> armorItemTags() {
         return BuiltInRegistries.ITEM.getTags()
-                .filter(pair -> pair.getSecond().stream().anyMatch(h -> ArmorPieces.isArmor(h.value())))
-                .map(Pair::getFirst)
+                .filter(named -> named.stream().anyMatch(h -> ArmorPieces.isArmor(h.value())))
+                .map(HolderSet.Named::key)
                 .sorted(Comparator.comparing(t -> t.location().toString()))
                 .toList();
     }
 
     /** @return all items of a tag */
     public static List<Item> itemsInTag(TagKey<Item> tag) {
-        return BuiltInRegistries.ITEM.getTag(tag).map(set -> set.stream().map(Holder::value).toList()).orElse(List.of());
+        return BuiltInRegistries.ITEM.get(tag).map(set -> set.stream().map(Holder::value).toList()).orElse(List.of());
     }
 
     /**

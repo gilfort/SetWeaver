@@ -1,6 +1,6 @@
 package com.gilfort.setweaver.seteffects;
 
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.neoforged.fml.loading.FMLPaths;
 
 import java.nio.file.Path;
@@ -73,7 +73,7 @@ public final class SetFiles {
      * @param fileName e.g. {@code c__armors__iron.json} for {@code c:armors/iron}
      * @return the tag id, or {@code null} if the name is not valid
      */
-    public static ResourceLocation tagFromFileName(String fileName) {
+    public static Identifier tagFromFileName(String fileName) {
         if (!fileName.endsWith(EXTENSION)) {
             return null;
         }
@@ -83,7 +83,7 @@ public final class SetFiles {
             return null;
         }
         String path = base.substring(split + TAG_SEPARATOR.length()).replace(TAG_SEPARATOR, "/");
-        return ResourceLocation.tryBuild(base.substring(0, split), path);
+        return Identifier.tryBuild(base.substring(0, split), path);
     }
 
     /**

@@ -1,12 +1,14 @@
 package com.gilfort.setweaver.client.gui;
 
 import com.gilfort.setweaver.seteffects.SetIds;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
-import org.lwjgl.glfw.GLFW;
+import net.minecraft.client.input.CharacterEvent;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.MouseButtonEvent;
 
 import java.util.List;
 import java.util.function.BiConsumer;
@@ -50,7 +52,6 @@ public class AttributeValueScreen extends Screen {
         valueBox = new EditBox(this.font, px + 8, py + 38, W - 16, 16, Component.translatable("gui.setweaver.value"));
         valueBox.setValue("1.0");
         valueBox.setMaxLength(12);
-        valueBox.setFilter(s -> s.matches("-?\\d*\\.?\\d*"));
         addRenderableWidget(valueBox);
         setInitialFocus(valueBox);
 
@@ -70,34 +71,34 @@ public class AttributeValueScreen extends Screen {
     }
 
     @Override
-    public void renderBackground(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
+    public void extractBackground(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
         g.fill(0, 0, this.width, this.height, GuiUtil.OVERLAY_DIM);
         GuiUtil.drawPanel(g, px, py, W, H);
     }
 
     @Override
-    public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
-        super.render(g, mouseX, mouseY, partialTick);
-        g.drawString(this.font, GuiUtil.tr("gui.setweaver.attribute_value.for"), px + 8, py + 8, GuiUtil.COLOR_TEXT, false);
-        g.drawString(this.font, AttributePreviewHelper.attributeName(attrId), px + 8, py + 20, 0xFF555555, false);
-        g.drawString(this.font, GuiUtil.tr("gui.setweaver.attribute_value.operation"), px + 8, py + 62, GuiUtil.COLOR_TEXT, false);
+    public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
+        super.extractRenderState(g, mouseX, mouseY, partialTick);
+        g.text(this.font, GuiUtil.tr("gui.setweaver.attribute_value.for"), px + 8, py + 8, GuiUtil.COLOR_TEXT, false);
+        g.text(this.font, AttributePreviewHelper.attributeName(attrId), px + 8, py + 20, 0xFF555555, false);
+        g.text(this.font, GuiUtil.tr("gui.setweaver.attribute_value.operation"), px + 8, py + 62, GuiUtil.COLOR_TEXT, false);
 
         double value = parseOr(valueBox.getValue(), 0);
         String operation = OPERATIONS.get(selectedOperation);
         String label = GuiUtil.tr("gui.setweaver.preview") + " ";
-        g.drawString(this.font, label, px + 8, py + 96, GuiUtil.COLOR_TEXT, false);
-        g.drawString(this.font, AttributePreviewHelper.getPreviewText(attrId, value, operation),
+        g.text(this.font, label, px + 8, py + 96, GuiUtil.COLOR_TEXT, false);
+        g.text(this.font, AttributePreviewHelper.getPreviewText(attrId, value, operation),
                 px + 8 + this.font.width(label), py + 96, value < 0 ? GuiUtil.COLOR_ERROR : 0xFF226622, false);
         String formula = AttributePreviewHelper.getFormulaText(value, operation);
         if (formula != null) {
-            g.drawString(this.font, formula, px + 8, py + 108, 0xFF888888, false);
+            g.text(this.font, formula, px + 8, py + 108, 0xFF888888, false);
         }
     }
 
     private void confirm() {
         try {
             double value = Double.parseDouble(valueBox.getValue().trim());
-            this.minecraft.setScreen(parent);
+            this.minecraft.gui.setScreen(parent);
             onConfirm.accept(value, OPERATIONS.get(selectedOperation));
         } catch (NumberFormatException e) {
             valueBox.setValue("1.0");
@@ -114,16 +115,16 @@ public class AttributeValueScreen extends Screen {
 
     @Override
     public void onClose() {
-        this.minecraft.setScreen(parent);
+        this.minecraft.gui.setScreen(parent);
     }
 
     @Override
-    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        if (keyCode == GLFW.GLFW_KEY_ENTER || keyCode == GLFW.GLFW_KEY_KP_ENTER) {
+    public boolean keyPressed(KeyEvent event) {
+        if (event.isConfirmation()) {
             confirm();
             return true;
         }
-        return super.keyPressed(keyCode, scanCode, modifiers);
+        return super.keyPressed(event);
     }
 
     @Override

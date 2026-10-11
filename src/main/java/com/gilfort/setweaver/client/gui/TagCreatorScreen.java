@@ -4,16 +4,17 @@ import com.gilfort.setweaver.SetWeaver;
 import com.gilfort.setweaver.network.SaveTagPayload;
 import com.gilfort.setweaver.seteffects.ArmorPieces;
 import net.minecraft.ChatFormatting;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.neoforged.neoforge.network.PacketDistributor;
+import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -113,8 +114,8 @@ public class TagCreatorScreen extends Screen {
     }
 
     @Override
-    public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        super.renderBackground(graphics, mouseX, mouseY, partialTick);
+    public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+        super.extractBackground(graphics, mouseX, mouseY, partialTick);
         int totalW = this.width - 2 * PANEL_MARGIN;
         int contentH = this.height - 2 * PANEL_MARGIN - 28;
         int leftPanelW = (int) (totalW * 0.35);
@@ -125,55 +126,55 @@ public class TagCreatorScreen extends Screen {
     }
 
     @Override
-    public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        super.render(graphics, mouseX, mouseY, partialTick);
+    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+        super.extractRenderState(graphics, mouseX, mouseY, partialTick);
         renderLeftPanel(graphics);
         renderRightPanel(graphics, mouseX, mouseY);
     }
 
-    private ResourceLocation tagId() {
-        return ResourceLocation.tryBuild(namespace.trim().toLowerCase(Locale.ROOT), tagName.trim().toLowerCase(Locale.ROOT));
+    private Identifier tagId() {
+        return Identifier.tryBuild(namespace.trim().toLowerCase(Locale.ROOT), tagName.trim().toLowerCase(Locale.ROOT));
     }
 
-    private void renderLeftPanel(GuiGraphics graphics) {
+    private void renderLeftPanel(GuiGraphicsExtractor graphics) {
         graphics.enableScissor(leftX, leftY, leftX + leftW, leftY + leftH);
-        graphics.drawString(this.font, Component.translatable("gui.setweaver.tag_creator.definition").withStyle(ChatFormatting.BOLD),
+        graphics.text(this.font, Component.translatable("gui.setweaver.tag_creator.definition").withStyle(ChatFormatting.BOLD),
                 leftX + 3, leftY, GuiUtil.COLOR_TEXT, false);
-        graphics.drawString(this.font, GuiUtil.tr("gui.setweaver.tag_creator.namespace"), leftX + 3, leftY + rowSpacing + 3, GuiUtil.COLOR_TEXT, false);
-        graphics.drawString(this.font, GuiUtil.tr("gui.setweaver.tag_creator.tag_name"), leftX + 3, leftY + rowSpacing * 2 + 3, GuiUtil.COLOR_TEXT, false);
+        graphics.text(this.font, GuiUtil.tr("gui.setweaver.tag_creator.namespace"), leftX + 3, leftY + rowSpacing + 3, GuiUtil.COLOR_TEXT, false);
+        graphics.text(this.font, GuiUtil.tr("gui.setweaver.tag_creator.tag_name"), leftX + 3, leftY + rowSpacing * 2 + 3, GuiUtil.COLOR_TEXT, false);
 
         int y = leftY + rowSpacing * 3 + 6;
-        ResourceLocation id = tagName.isBlank() ? null : tagId();
-        graphics.drawString(this.font, GuiUtil.tr("gui.setweaver.tag_creator.full_id"), leftX + 3, y, GuiUtil.COLOR_TEXT, false);
-        graphics.drawString(this.font, id == null ? GuiUtil.tr("gui.setweaver.tag_creator.incomplete") : "#" + id,
+        Identifier id = tagName.isBlank() ? null : tagId();
+        graphics.text(this.font, GuiUtil.tr("gui.setweaver.tag_creator.full_id"), leftX + 3, y, GuiUtil.COLOR_TEXT, false);
+        graphics.text(this.font, id == null ? GuiUtil.tr("gui.setweaver.tag_creator.incomplete") : "#" + id,
                 leftX + 3, y + lineHeight, id == null ? GuiUtil.COLOR_GRAY : 0xFF006600, false);
 
         y += lineHeight * 3;
         for (String line : GuiUtil.wrap(this.font, GuiUtil.tr("gui.setweaver.tag_creator.reload_hint"), leftW - 6)) {
-            graphics.drawString(this.font, Component.literal(line).withStyle(ChatFormatting.ITALIC), leftX + 3, y, GuiUtil.COLOR_GRAY, false);
+            graphics.text(this.font, Component.literal(line).withStyle(ChatFormatting.ITALIC), leftX + 3, y, GuiUtil.COLOR_GRAY, false);
             y += lineHeight;
         }
         y += lineHeight;
-        graphics.drawString(this.font, GuiUtil.tr("gui.setweaver.tag_creator.item_count", selectedItems.size()), leftX + 3, y, GuiUtil.COLOR_TEXT, false);
+        graphics.text(this.font, GuiUtil.tr("gui.setweaver.tag_creator.item_count", selectedItems.size()), leftX + 3, y, GuiUtil.COLOR_TEXT, false);
         if (status != null) {
             y += lineHeight * 2;
             for (String line : GuiUtil.wrap(this.font, status.getString(), leftW - 6)) {
-                graphics.drawString(this.font, line, leftX + 3, y, statusIsError ? GuiUtil.COLOR_ERROR : GuiUtil.COLOR_SUCCESS, false);
+                graphics.text(this.font, line, leftX + 3, y, statusIsError ? GuiUtil.COLOR_ERROR : GuiUtil.COLOR_SUCCESS, false);
                 y += lineHeight;
             }
         }
         graphics.disableScissor();
     }
 
-    private void renderRightPanel(GuiGraphics graphics, int mouseX, int mouseY) {
+    private void renderRightPanel(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
         itemDeleteBounds.clear();
         graphics.enableScissor(rightX, rightY, rightX + rightW, rightY + rightH);
-        graphics.drawString(this.font, Component.translatable("gui.setweaver.tag_creator.items").withStyle(ChatFormatting.BOLD),
+        graphics.text(this.font, Component.translatable("gui.setweaver.tag_creator.items").withStyle(ChatFormatting.BOLD),
                 rightX + 3, rightY, GuiUtil.COLOR_TEXT, false);
         int startY = rightY + lineHeight + 3;
         int maxLines = maxLines();
         if (selectedItems.isEmpty()) {
-            graphics.drawString(this.font, Component.translatable("gui.setweaver.tag_creator.no_items").withStyle(ChatFormatting.ITALIC),
+            graphics.text(this.font, Component.translatable("gui.setweaver.tag_creator.no_items").withStyle(ChatFormatting.ITALIC),
                     rightX + 8, startY, GuiUtil.COLOR_GRAY, false);
         }
         int end = Math.min(selectedItems.size(), scrollOffset + maxLines);
@@ -185,12 +186,12 @@ public class TagCreatorScreen extends Screen {
             }
             Item item = item(itemId);
             if (item != null) {
-                graphics.renderItem(new ItemStack(item), rightX + 3, y - 2);
+                graphics.item(new ItemStack(item), rightX + 3, y - 2);
             }
             String name = item != null ? new ItemStack(item).getHoverName().getString() : itemId;
-            graphics.drawString(this.font, GuiUtil.truncate(this.font, name, rightW - 40), rightX + 22, y, GuiUtil.COLOR_TEXT, false);
+            graphics.text(this.font, GuiUtil.truncate(this.font, name, rightW - 40), rightX + 22, y, GuiUtil.COLOR_TEXT, false);
             int[] bounds = {rightX + rightW - 12, y, 10, 10, i};
-            graphics.drawString(this.font, "✖", bounds[0], y, GuiUtil.hit(bounds, mouseX, mouseY) ? 0xFFFF0000 : 0xFF773333, false);
+            graphics.text(this.font, "✖", bounds[0], y, GuiUtil.hit(bounds, mouseX, mouseY) ? 0xFFFF0000 : 0xFF773333, false);
             itemDeleteBounds.add(bounds);
         }
         graphics.disableScissor();
@@ -202,13 +203,15 @@ public class TagCreatorScreen extends Screen {
     }
 
     private static Item item(String id) {
-        ResourceLocation loc = ResourceLocation.tryParse(id);
-        return loc != null && BuiltInRegistries.ITEM.containsKey(loc) ? BuiltInRegistries.ITEM.get(loc) : null;
+        Identifier loc = Identifier.tryParse(id);
+        return loc != null && BuiltInRegistries.ITEM.containsKey(loc) ? BuiltInRegistries.ITEM.getValue(loc) : null;
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (super.mouseClicked(mouseX, mouseY, button)) {
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        double mouseX = event.x();
+        double mouseY = event.y();
+        if (super.mouseClicked(event, doubleClick)) {
             return true;
         }
         for (int[] bounds : itemDeleteBounds) {
@@ -233,13 +236,13 @@ public class TagCreatorScreen extends Screen {
         List<SearchableListPopup.Entry<String>> entries = new ArrayList<>();
         BuiltInRegistries.ITEM.entrySet().forEach(e -> {
             if (ArmorPieces.isArmor(e.getValue())) {
-                String id = e.getKey().location().toString();
+                String id = e.getKey().identifier().toString();
                 String name = new ItemStack(e.getValue()).getHoverName().getString();
                 entries.add(new SearchableListPopup.Entry<>(id, Component.literal(name + " (" + id + ")"), name + " " + id));
             }
         });
         entries.sort(Comparator.comparing(SearchableListPopup.Entry::searchableText));
-        this.minecraft.setScreen(new SearchableListPopup<>(Component.translatable("gui.setweaver.tag_creator.add_item_title"), this, entries,
+        this.minecraft.gui.setScreen(new SearchableListPopup<>(Component.translatable("gui.setweaver.tag_creator.add_item_title"), this, entries,
                 id -> {
                     if (!selectedItems.contains(id)) {
                         selectedItems.add(id);
@@ -248,7 +251,7 @@ public class TagCreatorScreen extends Screen {
     }
 
     private void save() {
-        ResourceLocation id = tagName.isBlank() ? null : tagId();
+        Identifier id = tagName.isBlank() ? null : tagId();
         if (id == null) {
             setStatus(Component.translatable("gui.setweaver.tag_creator.error.invalid_id"), true);
             return;
@@ -257,7 +260,7 @@ public class TagCreatorScreen extends Screen {
             setStatus(Component.translatable("gui.setweaver.tag_creator.error.no_items"), true);
             return;
         }
-        PacketDistributor.sendToServer(new SaveTagPayload(id.getNamespace(), id.getPath(), List.copyOf(selectedItems)));
+        ClientPacketDistributor.sendToServer(new SaveTagPayload(id.getNamespace(), id.getPath(), List.copyOf(selectedItems)));
         setStatus(Component.translatable("gui.setweaver.tag_creator.sent"), false);
     }
 
@@ -268,7 +271,7 @@ public class TagCreatorScreen extends Screen {
 
     @Override
     public void onClose() {
-        this.minecraft.setScreen(parent);
+        this.minecraft.gui.setScreen(parent);
     }
 
     @Override

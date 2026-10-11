@@ -123,7 +123,11 @@ public final class AttributePackageManager {
         List<AttributePackage> sorted = new ArrayList<>();
         for (AttributePackage pkg : packages) {
             if (pkg != null) {
-                sorted.add(pkg.copy());
+                AttributePackage copy = pkg.copy();
+                // Old ids such as minecraft:generic.armor are matched under their current name
+                copy.setAttributes(new ArrayList<>(copy.getAttributes().stream()
+                        .map(id -> SetIds.canonicalAttributeId(id).orElse(id)).distinct().toList()));
+                sorted.add(copy);
             }
         }
         sorted.sort(Comparator.comparingInt(AttributePackage::getPriority));
@@ -243,7 +247,7 @@ public final class AttributePackageManager {
         AttributePackage defense = new AttributePackage();
         defense.setName("Defense");
         defense.setEnabled(false);
-        defense.setAttributes(new ArrayList<>(List.of("minecraft:generic.armor", "minecraft:generic.armor_toughness")));
+        defense.setAttributes(new ArrayList<>(List.of("minecraft:armor", "minecraft:armor_toughness")));
         return List.of(defense);
     }
 }

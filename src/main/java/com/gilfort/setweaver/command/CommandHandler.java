@@ -1,7 +1,6 @@
 package com.gilfort.setweaver.command;
 
 import com.gilfort.setweaver.network.OpenSetsGuiPayload;
-import com.gilfort.setweaver.network.ServerPayloadHandler;
 import com.gilfort.setweaver.network.SetWeaverSync;
 import com.gilfort.setweaver.seteffects.ArmorSetDataRegistry;
 import com.gilfort.setweaver.seteffects.SetFiles;
@@ -53,7 +52,7 @@ public final class CommandHandler {
      */
     public static void registerCommands(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(Commands.literal("setweaver")
-                .requires(src -> src.hasPermission(ServerPayloadHandler.PERMISSION_LEVEL))
+                .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
                 .then(Commands.literal("editor")
                         .executes(ctx -> openEditor(ctx.getSource())))
                 .then(Commands.literal("set")
