@@ -12,9 +12,11 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.SharedConstants;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.permissions.Permissions;
 import net.minecraft.server.packs.PackType;
+import net.minecraft.server.packs.metadata.pack.PackFormat;
 import net.minecraft.world.level.storage.LevelResource;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
@@ -30,13 +32,11 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * Handles client → server packets of the editor. Every handler runs on the server thread, checks operator level 2
+ * Handles client → server packets of the editor. Every handler runs on the server thread, checks the game master
+ * permission (operator level 2)
  * and treats all input as untrusted.
  */
 public final class ServerPayloadHandler {
-
-    /** Operator level needed for all editor actions. */
-    public static final int PERMISSION_LEVEL = 2;
 
     /** Name of the world datapack that receives tags created in the editor. */
     public static final String CUSTOM_DATAPACK = "setweaver_custom";
@@ -114,14 +114,14 @@ public final class ServerPayloadHandler {
             if (sender == null) {
                 return;
             }
-            ResourceLocation tagId = ResourceLocation.tryBuild(payload.namespace(), payload.tagName());
+            Identifier tagId = Identifier.tryBuild(payload.namespace(), payload.tagName());
             if (tagId == null || tagId.getPath().contains("..")) {
                 fail(sender, "message.setweaver.invalid_tag");
                 return;
             }
             Set<String> items = new LinkedHashSet<>();
             for (String raw : payload.items()) {
-                ResourceLocation itemId = ResourceLocation.tryParse(raw);
+                Identifier itemId = Identifier.tryParse(raw);
                 if (itemId != null && BuiltInRegistries.ITEM.containsKey(itemId)) {
                     items.add(itemId.toString());
                 }
@@ -131,7 +131,7 @@ public final class ServerPayloadHandler {
                 return;
             }
 
-            Path datapack = sender.getServer().getWorldPath(LevelResource.DATAPACK_DIR).resolve(CUSTOM_DATAPACK).normalize();
+            Path datapack = sender.level().getServer().getWorldPath(LevelResource.DATAPACK_DIR).resolve(CUSTOM_DATAPACK).normalize();
             Path tagFile = datapack.resolve("data").resolve(tagId.getNamespace()).resolve("tags").resolve("item")
                     .resolve(tagId.getPath() + ".json").normalize();
             if (!tagFile.startsWith(datapack)) {
@@ -171,14 +171,14 @@ public final class ServerPayloadHandler {
                 AttributePackageManager.AttributePackage clean = pkg.copy();
                 clean.setName(pkg.getName().strip());
                 clean.setAttributes(new ArrayList<>(pkg.getAttributes().stream()
-                        .filter(id -> ResourceLocation.tryParse(id) != null).distinct().toList()));
+                        .filter(id -> Identifier.tryParse(id) != null).distinct().toList()));
                 packages.add(clean);
             }
             if (!AttributePackageManager.saveAndReload(packages)) {
                 fail(sender, "message.setweaver.save_failed");
                 return;
             }
-            SetWeaverSync.broadcastRegistry(sender.getServer());
+            SetWeaverSync.broadcastRegistry(sender.level().getServer());
             success(sender, "message.setweaver.packages_saved", packages.size());
         });
     }
@@ -209,7 +209,7 @@ public final class ServerPayloadHandler {
     }
 
     private static ServerPlayer authorized(IPayloadContext context) {
-        if (context.player() instanceof ServerPlayer player && player.hasPermissions(PERMISSION_LEVEL)) {
+        if (context.player() instanceof ServerPlayer player && player.permissions().hasPermission(Permissions.COMMANDS_GAMEMASTER)) {
             return player;
         }
         if (context.player() instanceof ServerPlayer player) {
@@ -220,12 +220,17 @@ public final class ServerPayloadHandler {
 
     private static void reloadAndSync(ServerPlayer sender) {
         SetWeaverReloadListener.loadAllEffects();
-        SetWeaverSync.broadcastRegistry(sender.getServer());
+        SetWeaverSync.broadcastRegistry(sender.level().getServer());
     }
 
     private static String packMcmeta() {
+        PackFormat format = SharedConstants.getCurrentVersion().packVersion(PackType.SERVER_DATA);
+        JsonArray version = new JsonArray();
+        version.add(format.major());
+        version.add(format.minor());
         JsonObject pack = new JsonObject();
-        pack.addProperty("pack_format", SharedConstants.getCurrentVersion().getPackVersion(PackType.SERVER_DATA));
+        pack.add("min_format", version);
+        pack.add("max_format", version);
         pack.addProperty("description", "SetWeaver custom tags");
         JsonObject root = new JsonObject();
         root.add("pack", pack);

@@ -8,13 +8,11 @@ import com.gilfort.setweaver.seteffects.AttributePackageManager;
 import com.gilfort.setweaver.seteffects.SetIds;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.neoforged.api.distmarker.Dist;
@@ -43,6 +41,9 @@ public final class ArmorSetTooltipHandler {
     private static int currentSetPage = 0;
     /** Last hovered item, to reset the page when the item changes. */
     private static ItemStack lastHoveredStack = ItemStack.EMPTY;
+    /** When a tooltip with several sets was last shown; scrolling only pages while it is visible. */
+    private static long lastPagedTooltipMillis = 0;
+    private static final long PAGED_TOOLTIP_TIMEOUT_MS = 250;
 
     private ArmorSetTooltipHandler() {
     }
@@ -55,14 +56,12 @@ public final class ArmorSetTooltipHandler {
         lastHoveredStack = ItemStack.EMPTY;
     }
 
-    /** SHIFT + wheel over a set item in a container screen switches the displayed set. */
+    /** SHIFT + wheel while a tooltip with several sets is shown switches the displayed set. */
     @SubscribeEvent
     public static void onMouseScroll(ScreenEvent.MouseScrolled.Pre event) {
-        if (!Screen.hasShiftDown() || !(event.getScreen() instanceof AbstractContainerScreen<?> screen)) {
-            return;
-        }
-        Slot slot = screen.getSlotUnderMouse();
-        if (slot == null || !ArmorSetDataRegistry.client().isItemInAnyRegisteredTag(slot.getItem())) {
+        boolean pagedTooltipVisible = System.currentTimeMillis() - lastPagedTooltipMillis < PAGED_TOOLTIP_TIMEOUT_MS;
+        if (!pagedTooltipVisible || !Minecraft.getInstance().hasShiftDown()
+                || !(event.getScreen() instanceof AbstractContainerScreen<?>)) {
             return;
         }
         if (event.getScrollDeltaY() > 0) {
@@ -86,7 +85,7 @@ public final class ArmorSetTooltipHandler {
             lastHoveredStack = stack.copy();
         }
         List<Component> tooltip = event.getToolTip();
-        if (!Screen.hasShiftDown()) {
+        if (!Minecraft.getInstance().hasShiftDown()) {
             tooltip.add(Component.translatable("tooltip.setweaver.shift_hint").withStyle(ChatFormatting.AQUA));
             return;
         }
@@ -104,6 +103,9 @@ public final class ArmorSetTooltipHandler {
         if (matching.isEmpty()) {
             tooltip.add(Component.translatable("tooltip.setweaver.no_bonus_for_role").withStyle(ChatFormatting.GRAY));
             return;
+        }
+        if (matching.size() > 1) {
+            lastPagedTooltipMillis = System.currentTimeMillis();
         }
         currentSetPage = Math.floorMod(currentSetPage, matching.size());
         addSetLines(tooltip, player, matching.get(currentSetPage), matching.size());
@@ -166,7 +168,7 @@ public final class ArmorSetTooltipHandler {
             if (pkgName == null) {
                 addAttributeLine(tooltip, attribute, "  ");
             } else if (shown.add(pkgName)) {
-                if (Screen.hasAltDown()) {
+                if (Minecraft.getInstance().hasAltDown()) {
                     tooltip.add(Component.literal("  " + pkgName + ":").withStyle(ChatFormatting.YELLOW));
                     groups.get(pkgName).forEach(a -> addAttributeLine(tooltip, a, "    "));
                 } else {

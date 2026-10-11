@@ -1,7 +1,7 @@
 package com.gilfort.setweaver.util;
 
 import com.gilfort.setweaver.seteffects.ArmorSetDataRegistry;
-import net.minecraft.nbt.CompoundTag;
+import com.gilfort.setweaver.util.SetWeaverPlayerData.PlayerData;
 import net.minecraft.server.level.ServerPlayer;
 
 /**
@@ -9,13 +9,10 @@ import net.minecraft.server.level.ServerPlayer;
  */
 public final class PlayerDataHelper {
 
-    private static final String ROLE_TAG = "Role";
-    private static final String LEVEL_TAG = "Level";
-
     private PlayerDataHelper() {
     }
 
-    private static CompoundTag getTag(ServerPlayer player) {
+    private static PlayerData get(ServerPlayer player) {
         return player.getData(SetWeaverPlayerData.PLAYER_DATA.get());
     }
 
@@ -26,9 +23,7 @@ public final class PlayerDataHelper {
      * @param role   the role name
      */
     public static void setRole(ServerPlayer player, String role) {
-        CompoundTag tag = getTag(player).copy();
-        tag.putString(ROLE_TAG, ArmorSetDataRegistry.normalizeRole(role));
-        player.setData(SetWeaverPlayerData.PLAYER_DATA.get(), tag);
+        player.setData(SetWeaverPlayerData.PLAYER_DATA.get(), new PlayerData(ArmorSetDataRegistry.normalizeRole(role), getLevel(player)));
     }
 
     /**
@@ -36,7 +31,7 @@ public final class PlayerDataHelper {
      * @return the role, empty if none is set
      */
     public static String getRole(ServerPlayer player) {
-        return getTag(player).getString(ROLE_TAG);
+        return get(player).role();
     }
 
     /**
@@ -46,9 +41,7 @@ public final class PlayerDataHelper {
      * @param level  the level (1 or higher)
      */
     public static void setLevel(ServerPlayer player, int level) {
-        CompoundTag tag = getTag(player).copy();
-        tag.putInt(LEVEL_TAG, level);
-        player.setData(SetWeaverPlayerData.PLAYER_DATA.get(), tag);
+        player.setData(SetWeaverPlayerData.PLAYER_DATA.get(), new PlayerData(getRole(player), level));
     }
 
     /**
@@ -56,6 +49,6 @@ public final class PlayerDataHelper {
      * @return the level, 0 if none is set
      */
     public static int getLevel(ServerPlayer player) {
-        return getTag(player).getInt(LEVEL_TAG);
+        return get(player).level();
     }
 }

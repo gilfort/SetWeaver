@@ -11,7 +11,7 @@ import com.gilfort.setweaver.seteffects.ArmorSetDataRegistry.SetEntry;
 import com.gilfort.setweaver.seteffects.SetFiles;
 import com.gilfort.setweaver.seteffects.ValidationResult;
 import net.minecraft.ChatFormatting;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.ConfirmScreen;
@@ -21,8 +21,10 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.neoforged.neoforge.network.PacketDistributor;
-import org.lwjgl.glfw.GLFW;
+import net.neoforged.neoforge.client.network.ClientPacketDistributor;
+import net.minecraft.client.input.CharacterEvent;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.MouseButtonEvent;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -133,8 +135,8 @@ public class SetsManagerScreen extends Screen {
 
         String[] keys = {"reload", "validate", "tags", "packages", "create", "close"};
         Runnable[] actions = {this::reload, this::validate, this::toggleTagBrowser,
-                () -> this.minecraft.setScreen(new PackageEditorScreen(this)),
-                () -> this.minecraft.setScreen(new SetWizardScreen(this)), this::onClose};
+                () -> this.minecraft.gui.setScreen(new PackageEditorScreen(this)),
+                () -> this.minecraft.gui.setScreen(new SetWizardScreen(this)), this::onClose};
         int buttonW = 55;
         int startX = (this.width - (buttonW * keys.length + 8 * (keys.length - 1))) / 2;
         int buttonY = PANEL_MARGIN + contentH + 4;
@@ -152,7 +154,7 @@ public class SetsManagerScreen extends Screen {
         addRenderableWidget(tagSearchBox);
 
         createTagButton = Button.builder(Component.translatable("gui.setweaver.manager.create_tag"),
-                btn -> this.minecraft.setScreen(new TagCreatorScreen(this))).bounds(leftX, leftY + leftH - 20, leftW, 20).build();
+                btn -> this.minecraft.gui.setScreen(new TagCreatorScreen(this))).bounds(leftX, leftY + leftH - 20, leftW, 20).build();
         createTagButton.visible = showingTagBrowser;
         addRenderableWidget(createTagButton);
 
@@ -243,8 +245,8 @@ public class SetsManagerScreen extends Screen {
     // ─── Rendering ───────────────────────────────────────────────────────
 
     @Override
-    public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        super.renderBackground(graphics, mouseX, mouseY, partialTick);
+    public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+        super.extractBackground(graphics, mouseX, mouseY, partialTick);
         GuiUtil.drawPanel(graphics, leftPanelX, PANEL_MARGIN, leftPanelW, panelH);
         GuiUtil.drawPanel(graphics, rightPanelX, PANEL_MARGIN, rightPanelW, panelH);
         int divX = leftPanelX + leftPanelW + 1;
@@ -252,8 +254,8 @@ public class SetsManagerScreen extends Screen {
     }
 
     @Override
-    public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        super.render(graphics, mouseX, mouseY, partialTick);
+    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+        super.extractRenderState(graphics, mouseX, mouseY, partialTick);
         if (showingTagBrowser) {
             renderTagList(graphics, mouseX, mouseY);
             renderTagItems(graphics, mouseX, mouseY);
@@ -263,12 +265,12 @@ public class SetsManagerScreen extends Screen {
         }
     }
 
-    private void renderSetList(GuiGraphics graphics, int mouseX, int mouseY) {
+    private void renderSetList(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
         editBounds = copyBounds = deleteBounds = null;
         if (rows.isEmpty()) {
-            graphics.drawString(this.font, Component.translatable("gui.setweaver.manager.no_sets").withStyle(ChatFormatting.ITALIC),
+            graphics.text(this.font, Component.translatable("gui.setweaver.manager.no_sets").withStyle(ChatFormatting.ITALIC),
                     leftX + 5, leftY + 5, GuiUtil.COLOR_GRAY, false);
-            graphics.drawString(this.font, GuiUtil.tr("gui.setweaver.manager.no_sets_hint"), leftX + 5, leftY + 5 + lineHeight, GuiUtil.COLOR_GRAY, false);
+            graphics.text(this.font, GuiUtil.tr("gui.setweaver.manager.no_sets_hint"), leftX + 5, leftY + 5 + lineHeight, GuiUtil.COLOR_GRAY, false);
             return;
         }
         graphics.enableScissor(leftX, leftY, leftX + leftW, leftY + leftH);
@@ -282,14 +284,14 @@ public class SetsManagerScreen extends Screen {
                 graphics.fill(leftX, y - 1, leftX + leftW, y + lineHeight - 1, GuiUtil.COLOR_HOVER);
             }
             switch (row.kind()) {
-                case SECTION -> graphics.drawString(this.font, Component.literal(GuiUtil.truncate(this.font, row.text(), leftW - 10))
+                case SECTION -> graphics.text(this.font, Component.literal(GuiUtil.truncate(this.font, row.text(), leftW - 10))
                         .withStyle(ChatFormatting.BOLD, ChatFormatting.ITALIC), leftX + 3, y, GuiUtil.COLOR_GRAY, false);
-                case TAG -> graphics.drawString(this.font, Component.literal(GuiUtil.truncate(this.font, row.text(), leftW - 10))
+                case TAG -> graphics.text(this.font, Component.literal(GuiUtil.truncate(this.font, row.text(), leftW - 10))
                         .withStyle(ChatFormatting.BOLD), leftX + 3, y, GuiUtil.COLOR_TEXT, false);
                 case SCOPE -> {
-                    graphics.drawString(this.font, "● ", leftX + 8, y, scopeColor(row.entry()), false);
+                    graphics.text(this.font, "● ", leftX + 8, y, scopeColor(row.entry()), false);
                     int x = leftX + 8 + this.font.width("● ");
-                    graphics.drawString(this.font, GuiUtil.truncate(this.font, row.text(), leftW - (x - leftX) - 40), x, y, GuiUtil.COLOR_TEXT, false);
+                    graphics.text(this.font, GuiUtil.truncate(this.font, row.text(), leftW - (x - leftX) - 40), x, y, GuiUtil.COLOR_TEXT, false);
                 }
             }
             if (i == selectedIndex && row.kind() == ListRow.Kind.SCOPE) {
@@ -303,9 +305,9 @@ public class SetsManagerScreen extends Screen {
         GuiUtil.drawScrollbar(graphics, leftX + leftW - 3, leftY, leftH, rows.size(), maxLinesLeft, leftScroll);
     }
 
-    private int[] drawIcon(GuiGraphics graphics, String icon, int x, int y, int hoverColor, int color, int mouseX, int mouseY) {
+    private int[] drawIcon(GuiGraphicsExtractor graphics, String icon, int x, int y, int hoverColor, int color, int mouseX, int mouseY) {
         int[] bounds = {x, y, ICON_SIZE, ICON_SIZE};
-        graphics.drawString(this.font, icon, x, y, GuiUtil.hit(bounds, mouseX, mouseY) ? hoverColor : color, false);
+        graphics.text(this.font, icon, x, y, GuiUtil.hit(bounds, mouseX, mouseY) ? hoverColor : color, false);
         return bounds;
     }
 
@@ -382,14 +384,14 @@ public class SetsManagerScreen extends Screen {
         return lines;
     }
 
-    private void renderDetailLines(GuiGraphics graphics, List<DetailLine> lines) {
+    private void renderDetailLines(GuiGraphicsExtractor graphics, List<DetailLine> lines) {
         rightScroll = Math.clamp(rightScroll, 0, Math.max(0, lines.size() - maxLinesRight));
         graphics.enableScissor(rightX, rightY, rightX + rightW, rightY + rightH);
         int y = rightY - rightScroll * lineHeight;
         for (DetailLine line : lines) {
             if (y >= rightY - lineHeight && y < rightY + rightH && !line.text().isEmpty()) {
                 Component text = line.bold() ? Component.literal(line.text()).withStyle(ChatFormatting.BOLD) : Component.literal(line.text());
-                graphics.drawString(this.font, text, rightX + line.indent() + 3, y, line.color(), false);
+                graphics.text(this.font, text, rightX + line.indent() + 3, y, line.color(), false);
             }
             y += lineHeight;
         }
@@ -407,13 +409,13 @@ public class SetsManagerScreen extends Screen {
         return leftH - 18 - 24;
     }
 
-    private void renderTagList(GuiGraphics graphics, int mouseX, int mouseY) {
+    private void renderTagList(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
         int listY = tagListY();
         int listH = tagListH();
         int maxLines = listH / lineHeight;
         graphics.enableScissor(leftX, listY, leftX + leftW, listY + listH);
         if (filteredTags.isEmpty()) {
-            graphics.drawString(this.font, Component.translatable("gui.setweaver.manager.no_tags").withStyle(ChatFormatting.ITALIC),
+            graphics.text(this.font, Component.translatable("gui.setweaver.manager.no_tags").withStyle(ChatFormatting.ITALIC),
                     leftX + 3, listY + 3, GuiUtil.COLOR_GRAY, false);
         }
         int end = Math.min(filteredTags.size(), tagLeftScroll + maxLines);
@@ -426,19 +428,19 @@ public class SetsManagerScreen extends Screen {
             }
             TagKey<Item> tag = filteredTags.get(i);
             String ns = tag.location().getNamespace() + ":";
-            graphics.drawString(this.font, ns, leftX + 3, y, GuiUtil.COLOR_GRAY, false);
+            graphics.text(this.font, ns, leftX + 3, y, GuiUtil.COLOR_GRAY, false);
             int nsW = this.font.width(ns);
-            graphics.drawString(this.font, GuiUtil.truncate(this.font, tag.location().getPath(), leftW - nsW - 10), leftX + 3 + nsW, y, GuiUtil.COLOR_TEXT, false);
+            graphics.text(this.font, GuiUtil.truncate(this.font, tag.location().getPath(), leftW - nsW - 10), leftX + 3 + nsW, y, GuiUtil.COLOR_TEXT, false);
         }
         graphics.disableScissor();
         GuiUtil.drawScrollbar(graphics, leftX + leftW - 3, listY, listH, filteredTags.size(), maxLines, tagLeftScroll);
     }
 
-    private void renderTagItems(GuiGraphics graphics, int mouseX, int mouseY) {
+    private void renderTagItems(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
         editTagBounds = null;
         graphics.enableScissor(rightX, rightY, rightX + rightW, rightY + rightH);
         if (tagSelectedIndex < 0 || tagSelectedIndex >= filteredTags.size()) {
-            graphics.drawString(this.font, Component.translatable("gui.setweaver.manager.select_tag").withStyle(ChatFormatting.ITALIC),
+            graphics.text(this.font, Component.translatable("gui.setweaver.manager.select_tag").withStyle(ChatFormatting.ITALIC),
                     rightX + 5, rightY + 5, GuiUtil.COLOR_GRAY, false);
             graphics.disableScissor();
             return;
@@ -447,25 +449,25 @@ public class SetsManagerScreen extends Screen {
         tagRightScroll = Math.clamp(tagRightScroll, 0, Math.max(0, totalLines - maxLinesRight));
         TagKey<Item> tag = filteredTags.get(tagSelectedIndex);
         int y = rightY - tagRightScroll * lineHeight;
-        graphics.drawString(this.font, Component.literal("#" + tag.location()).withStyle(ChatFormatting.BOLD), rightX + 3, y, GuiUtil.COLOR_TEXT, false);
+        graphics.text(this.font, Component.literal("#" + tag.location()).withStyle(ChatFormatting.BOLD), rightX + 3, y, GuiUtil.COLOR_TEXT, false);
         y += lineHeight;
-        graphics.drawString(this.font, GuiUtil.tr("gui.setweaver.manager.item_count", selectedTagItems.size()), rightX + 3, y, GuiUtil.COLOR_TEXT, false);
+        graphics.text(this.font, GuiUtil.tr("gui.setweaver.manager.item_count", selectedTagItems.size()), rightX + 3, y, GuiUtil.COLOR_TEXT, false);
         // Tags of this mod's namespace are usually created in the editor and can be edited there
         if (SetWeaver.MODID.equals(tag.location().getNamespace())) {
             String label = GuiUtil.tr("gui.setweaver.manager.edit_tag");
             int x = rightX + rightW - this.font.width(label) - 5;
             editTagBounds = new int[]{x, y, this.font.width(label), lineHeight};
-            graphics.drawString(this.font, label, x, y, GuiUtil.hit(editTagBounds, mouseX, mouseY) ? 0xFF0088CC : 0xFF336699, false);
+            graphics.text(this.font, label, x, y, GuiUtil.hit(editTagBounds, mouseX, mouseY) ? 0xFF0088CC : 0xFF336699, false);
         }
         y += lineHeight * 2;
         for (Item item : selectedTagItems) {
             if (y >= rightY - lineHeight && y < rightY + rightH) {
-                graphics.renderItem(new ItemStack(item), rightX + 3, y - 1);
-                graphics.drawString(this.font, new ItemStack(item).getHoverName().getString(), rightX + 22, y, GuiUtil.COLOR_TEXT, false);
+                graphics.item(new ItemStack(item), rightX + 3, y - 1);
+                graphics.text(this.font, new ItemStack(item).getHoverName().getString(), rightX + 22, y, GuiUtil.COLOR_TEXT, false);
             }
             y += lineHeight;
             if (y >= rightY - lineHeight && y < rightY + rightH) {
-                graphics.drawString(this.font, BuiltInRegistries.ITEM.getKey(item).toString(), rightX + 22, y, GuiUtil.COLOR_GRAY, false);
+                graphics.text(this.font, BuiltInRegistries.ITEM.getKey(item).toString(), rightX + 22, y, GuiUtil.COLOR_GRAY, false);
             }
             y += lineHeight;
         }
@@ -509,24 +511,24 @@ public class SetsManagerScreen extends Screen {
     // ─── Actions ─────────────────────────────────────────────────────────
 
     private void reload() {
-        PacketDistributor.sendToServer(new ReloadRequestPayload());
+        ClientPacketDistributor.sendToServer(new ReloadRequestPayload());
     }
 
     private void validate() {
-        PacketDistributor.sendToServer(new ValidateRequestPayload());
+        ClientPacketDistributor.sendToServer(new ValidateRequestPayload());
     }
 
     private void editSelected() {
         SetEntry entry = selectedEntry();
         if (entry != null) {
-            this.minecraft.setScreen(new SetEditorScreen(this, this, SetEditorData.of(entry)));
+            this.minecraft.gui.setScreen(new SetEditorScreen(this, this, SetEditorData.of(entry)));
         }
     }
 
     private void copySelected() {
         SetEntry entry = selectedEntry();
         if (entry != null) {
-            this.minecraft.setScreen(new SetWizardScreen(this, SetEditorData.of(entry)));
+            this.minecraft.gui.setScreen(new SetWizardScreen(this, SetEditorData.of(entry)));
         }
     }
 
@@ -536,11 +538,11 @@ public class SetsManagerScreen extends Screen {
             return;
         }
         String path = SetFiles.relativePath(entry.role(), entry.level(), entry.tag());
-        this.minecraft.setScreen(new ConfirmScreen(confirmed -> {
+        this.minecraft.gui.setScreen(new ConfirmScreen(confirmed -> {
             if (confirmed) {
-                PacketDistributor.sendToServer(new DeleteSetPayload(path));
+                ClientPacketDistributor.sendToServer(new DeleteSetPayload(path));
             }
-            this.minecraft.setScreen(this);
+            this.minecraft.gui.setScreen(this);
         }, Component.translatable("gui.setweaver.manager.delete_title"), Component.translatable("gui.setweaver.manager.delete_question", path)));
     }
 
@@ -550,14 +552,16 @@ public class SetsManagerScreen extends Screen {
         }
         TagKey<Item> tag = filteredTags.get(tagSelectedIndex);
         List<String> ids = selectedTagItems.stream().map(i -> BuiltInRegistries.ITEM.getKey(i).toString()).toList();
-        this.minecraft.setScreen(new TagCreatorScreen(this, tag.location().getNamespace(), tag.location().getPath(), ids));
+        this.minecraft.gui.setScreen(new TagCreatorScreen(this, tag.location().getNamespace(), tag.location().getPath(), ids));
     }
 
     // ─── Input ───────────────────────────────────────────────────────────
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (super.mouseClicked(mouseX, mouseY, button)) {
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        double mouseX = event.x();
+        double mouseY = event.y();
+        if (super.mouseClicked(event, doubleClick)) {
             return true;
         }
         if (showingTagBrowser) {
@@ -620,12 +624,12 @@ public class SetsManagerScreen extends Screen {
     }
 
     @Override
-    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        if (!showingTagBrowser && (keyCode == GLFW.GLFW_KEY_UP || keyCode == GLFW.GLFW_KEY_DOWN)) {
-            moveSelection(keyCode == GLFW.GLFW_KEY_UP ? -1 : 1);
+    public boolean keyPressed(KeyEvent event) {
+        if (!showingTagBrowser && (event.isUp() || event.isDown())) {
+            moveSelection(event.isUp() ? -1 : 1);
             return true;
         }
-        return super.keyPressed(keyCode, scanCode, modifiers);
+        return super.keyPressed(event);
     }
 
     private void moveSelection(int direction) {

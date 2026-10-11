@@ -26,7 +26,7 @@ Scope folders: see [Roles & Levels](Roles-and-Levels). Only files ending in `.js
   "parts": {
     "2Part": {
       "Effects": [ { "Effect": "minecraft:resistance", "Amplifier": 0 } ],
-      "Attributes": [ { "attribute": "minecraft:generic.armor", "value": 2.0, "modifier": "addition" } ]
+      "Attributes": [ { "attribute": "minecraft:armor", "value": 2.0, "modifier": "addition" } ]
     },
     "4Part": {
       "Effects": [
@@ -34,8 +34,8 @@ Scope folders: see [Roles & Levels](Roles-and-Levels). Only files ending in `.js
         { "Effect": "minecraft:fire_resistance", "Amplifier": 0 }
       ],
       "Attributes": [
-        { "attribute": "minecraft:generic.armor", "value": 4.0, "modifier": "addition" },
-        { "attribute": "minecraft:generic.armor_toughness", "value": 0.2, "modifier": "multiply_base" }
+        { "attribute": "minecraft:armor", "value": 4.0, "modifier": "addition" },
+        { "attribute": "minecraft:armor_toughness", "value": 0.2, "modifier": "multiply_base" }
       ]
     }
   }
@@ -50,11 +50,13 @@ Scope folders: see [Roles & Levels](Roles-and-Levels). Only files ending in `.js
 | `parts` | object | Thresholds `1Part` … `4Part` |
 | `Effects[].Effect` | string | Effect id, e.g. `minecraft:speed` |
 | `Effects[].Amplifier` | int 0–9 | 0 = level I, 9 = level X |
-| `Attributes[].attribute` | string | Attribute id, e.g. `minecraft:generic.max_health` |
+| `Attributes[].attribute` | string | Attribute id, e.g. `minecraft:max_health` |
 | `Attributes[].value` | number | Amount |
 | `Attributes[].modifier` | string | `addition`, `multiply_base` or `multiply_total` |
 
-The old map form `"Attributes": { "<id>": { "value": …, "modifier": … } }` is still read.
+The old map form `"Attributes": { "<id>": { "value": …, "modifier": … } }` is still read. Vanilla attribute ids
+of Minecraft 1.21.1 (`minecraft:generic.armor`, `minecraft:player.block_interaction_range`, …) are accepted and
+matched under their current name (`minecraft:armor`); the editor writes the current names.
 
 ## Thresholds
 

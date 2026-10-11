@@ -11,7 +11,7 @@ GameTests: none. Automated so far: `build`.
 
 - [ ] `runClient` and `runServer` start without errors; first start creates `config/setweaver/set_armor/` with
       `HOW_TO_SET_EFFECTS.txt`, the example and `attribute_packages.json`.
-- [ ] Set with `+4 minecraft:generic.max_health` at 2 pieces: wear 2 pieces, heal to 24 HP, wait 10 s — health stays
+- [ ] Set with `+4 minecraft:max_health` at 2 pieces: wear 2 pieces, heal to 24 HP, wait 10 s — health stays
       at 24 (was cut to 20 before).
 - [ ] Effects (e.g. speed) apply and run out about 10 s after taking the armor off; attribute bonuses disappear.
 - [ ] Two sets for different tags on the same armor both apply.

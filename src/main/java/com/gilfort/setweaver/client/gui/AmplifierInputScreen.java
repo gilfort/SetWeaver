@@ -1,12 +1,14 @@
 package com.gilfort.setweaver.client.gui;
 
 import com.gilfort.setweaver.seteffects.SetWeaverReloadListener;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
-import org.lwjgl.glfw.GLFW;
+import net.minecraft.client.input.CharacterEvent;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.MouseButtonEvent;
 
 import java.util.function.IntConsumer;
 
@@ -48,7 +50,6 @@ public class AmplifierInputScreen extends Screen {
                 Component.translatable("gui.setweaver.amplifier.title"));
         amplifierBox.setMaxLength(1);
         amplifierBox.setValue("0");
-        amplifierBox.setFilter(s -> s.matches("\\d?"));
         amplifierBox.setHint(Component.translatable("gui.setweaver.amplifier.hint"));
         addRenderableWidget(amplifierBox);
         setInitialFocus(amplifierBox);
@@ -72,38 +73,38 @@ public class AmplifierInputScreen extends Screen {
             errorMessage = Component.translatable("gui.setweaver.amplifier.invalid", SetWeaverReloadListener.MAX_AMPLIFIER);
             return;
         }
-        this.minecraft.setScreen(parentScreen);
+        this.minecraft.gui.setScreen(parentScreen);
         onConfirm.accept(amplifier);
     }
 
     @Override
     public void onClose() {
-        this.minecraft.setScreen(parentScreen);
+        this.minecraft.gui.setScreen(parentScreen);
     }
 
     @Override
-    public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        super.renderBackground(graphics, mouseX, mouseY, partialTick);
+    public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+        super.extractBackground(graphics, mouseX, mouseY, partialTick);
         GuiUtil.drawPanel(graphics, panelX, panelY, PANEL_W, PANEL_H);
     }
 
     @Override
-    public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        super.render(graphics, mouseX, mouseY, partialTick);
-        graphics.drawString(this.font, GuiUtil.tr("gui.setweaver.amplifier.for", AttributePreviewHelper.shortName(effectId)),
+    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+        super.extractRenderState(graphics, mouseX, mouseY, partialTick);
+        graphics.text(this.font, GuiUtil.tr("gui.setweaver.amplifier.for", AttributePreviewHelper.shortName(effectId)),
                 panelX + PADDING, panelY + PADDING, GuiUtil.COLOR_TEXT, false);
         if (errorMessage != null) {
-            graphics.drawString(this.font, errorMessage, panelX + PADDING, panelY + PANEL_H - PADDING - 32, GuiUtil.COLOR_ERROR, false);
+            graphics.text(this.font, errorMessage, panelX + PADDING, panelY + PANEL_H - PADDING - 32, GuiUtil.COLOR_ERROR, false);
         }
     }
 
     @Override
-    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        if (keyCode == GLFW.GLFW_KEY_ENTER || keyCode == GLFW.GLFW_KEY_KP_ENTER) {
+    public boolean keyPressed(KeyEvent event) {
+        if (event.isConfirmation()) {
             confirm();
             return true;
         }
-        return super.keyPressed(keyCode, scanCode, modifiers);
+        return super.keyPressed(event);
     }
 
     @Override
