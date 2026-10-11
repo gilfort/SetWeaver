@@ -1,41 +1,60 @@
 package com.gilfort.setweaver.util;
 
-import com.gilfort.setweaver.SetWeaver;
-import com.gilfort.setweaver.util.SetWeaverPlayerData;
+import com.gilfort.setweaver.seteffects.ArmorSetDataRegistry;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerPlayer;
 
-public class PlayerDataHelper {
+/**
+ * Reads and writes a player's role and level, stored in the {@link SetWeaverPlayerData#PLAYER_DATA} attachment.
+ */
+public final class PlayerDataHelper {
 
     private static final String ROLE_TAG = "Role";
     private static final String LEVEL_TAG = "Level";
 
-    private static CompoundTag getTag(ServerPlayer player){
+    private PlayerDataHelper() {
+    }
+
+    private static CompoundTag getTag(ServerPlayer player) {
         return player.getData(SetWeaverPlayerData.PLAYER_DATA.get());
     }
 
-    // Saves the role tag for the given player
+    /**
+     * Sets the role (stored in lower case).
+     *
+     * @param player the player
+     * @param role   the role name
+     */
     public static void setRole(ServerPlayer player, String role) {
-        CompoundTag persistentData = getTag(player);
-        persistentData.putString(ROLE_TAG, role);
-        player.setData(SetWeaverPlayerData.PLAYER_DATA.get(), persistentData);
-        SetWeaver.LOGGER.info("Role set to {} for {}", role, player.getName().getString());
+        CompoundTag tag = getTag(player).copy();
+        tag.putString(ROLE_TAG, ArmorSetDataRegistry.normalizeRole(role));
+        player.setData(SetWeaverPlayerData.PLAYER_DATA.get(), tag);
     }
 
-    // Reads the role tag for the given player
+    /**
+     * @param player the player
+     * @return the role, empty if none is set
+     */
     public static String getRole(ServerPlayer player) {
         return getTag(player).getString(ROLE_TAG);
     }
 
-    // Saves the level tag for the given player
+    /**
+     * Sets the level.
+     *
+     * @param player the player
+     * @param level  the level (1 or higher)
+     */
     public static void setLevel(ServerPlayer player, int level) {
-        CompoundTag tag = getTag(player);
+        CompoundTag tag = getTag(player).copy();
         tag.putInt(LEVEL_TAG, level);
         player.setData(SetWeaverPlayerData.PLAYER_DATA.get(), tag);
-        SetWeaver.LOGGER.info("Level set to {} for {}", level, player.getName().getString());
     }
 
-    // Reads the level tag for the given player
+    /**
+     * @param player the player
+     * @return the level, 0 if none is set
+     */
     public static int getLevel(ServerPlayer player) {
         return getTag(player).getInt(LEVEL_TAG);
     }

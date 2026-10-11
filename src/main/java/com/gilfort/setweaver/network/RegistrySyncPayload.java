@@ -2,49 +2,32 @@ package com.gilfort.setweaver.network;
 
 import com.gilfort.setweaver.SetWeaver;
 import io.netty.buffer.ByteBuf;
-import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.ResourceLocation;
-import org.jetbrains.annotations.NotNull;
 
 /**
- * Server → Client payload that syncs the entire ArmorSetDataRegistry
- * and the attribute package configuration.
- * Both are serialized as JSON strings for simplicity and forward compatibility.
- * Sent on player login and after any server-side reload of set definitions.
+ * Server → client: all set definitions and attribute packages as JSON. Sent on login and after every reload.
  *
- * <p>Uses a custom codec with a 2 MB limit per string to support large modpacks
- * (the default STRING_UTF8 limit of 32767 bytes is too small).</p>
+ * @param registryJson set definitions (see {@code ArmorSetDataRegistry#serializeToJson})
+ * @param packagesJson attribute packages (see {@code AttributePackageManager#serializeToJson})
  */
 public record RegistrySyncPayload(String registryJson, String packagesJson) implements CustomPacketPayload {
 
-    /** Max bytes per JSON string field (2 MB). */
+    /** Max length per JSON string; large modpacks exceed the default limit of 32767. */
     private static final int MAX_STRING_LENGTH = 2_097_152;
 
-    public static final Type<RegistrySyncPayload> TYPE =
-            new Type<>(ResourceLocation.fromNamespaceAndPath(SetWeaver.MODID, "registry_sync"));
+    /** Payload type. */
+    public static final Type<RegistrySyncPayload> TYPE = new Type<>(SetWeaver.id("registry_sync"));
 
-    public static final StreamCodec<ByteBuf, RegistrySyncPayload> STREAM_CODEC =
-            new StreamCodec<>() {
-                @Override
-                public RegistrySyncPayload decode(ByteBuf buf) {
-                    FriendlyByteBuf friendly = new FriendlyByteBuf(buf);
-                    String registry = friendly.readUtf(MAX_STRING_LENGTH);
-                    String packages = friendly.readUtf(MAX_STRING_LENGTH);
-                    return new RegistrySyncPayload(registry, packages);
-                }
-
-                @Override
-                public void encode(ByteBuf buf, RegistrySyncPayload payload) {
-                    FriendlyByteBuf friendly = new FriendlyByteBuf(buf);
-                    friendly.writeUtf(payload.registryJson(), MAX_STRING_LENGTH);
-                    friendly.writeUtf(payload.packagesJson(), MAX_STRING_LENGTH);
-                }
-            };
+    /** Network codec. */
+    public static final StreamCodec<ByteBuf, RegistrySyncPayload> STREAM_CODEC = StreamCodec.composite(
+            ByteBufCodecs.stringUtf8(MAX_STRING_LENGTH), RegistrySyncPayload::registryJson,
+            ByteBufCodecs.stringUtf8(MAX_STRING_LENGTH), RegistrySyncPayload::packagesJson,
+            RegistrySyncPayload::new);
 
     @Override
-    public @NotNull Type<? extends CustomPacketPayload> type() {
+    public Type<? extends CustomPacketPayload> type() {
         return TYPE;
     }
 }

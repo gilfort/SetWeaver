@@ -1,207 +1,280 @@
 package com.gilfort.setweaver.seteffects;
 
+import com.gilfort.setweaver.SetWeaver;
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 
 import java.lang.reflect.Type;
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 
-public class ArmorSetDataRegistry {
+/**
+ * Loaded armor set definitions, keyed by role, level and item tag.
+ *
+ * <p>There is one instance per logical side: {@link #server()} is filled from the config folder, {@link #client()}
+ * from the server's sync packet. In single player both live in the same JVM, so they must never share state.
+ * Each instance holds an immutable snapshot that is swapped atomically, so readers on other threads never see a
+ * half-built registry.</p>
+ */
+public final class ArmorSetDataRegistry {
 
-    // Key format: "role:level:namespace:tagpath"
-    // Example:   "naturalist:3:zauberei:magiccloth_armor"
-    private static final Map<String, ArmorSetData> DATA_MAP = new HashMap<>();
-
-    public static void clear() {
-        DATA_MAP.clear();
-    }
-
-    public static void put(String role, int level, String tag, ArmorSetData data) {
-        String key = makeKey(role, level, tag);
-        DATA_MAP.put(key, data);
-    }
-
-    // ─── Sentinel values for wildcards ───────────────────────────────────
+    /** Role placeholder for sets that apply to every role. */
     public static final String WILDCARD_ROLE = "*";
-    public static final int    WILDCARD_LEVEL  = -1;
+    /** Level placeholder for sets that apply to every level. */
+    public static final int WILDCARD_LEVEL = -1;
 
-    /**
-     * Returns set data for the given role/level/tag with priority fallback:
-     * <ol>
-     *   <li>Exact match: {@code role + level + tag}</li>
-     *   <li>Wildcard role: {@code all_roles + level + tag}</li>
-     *   <li>Wildcard both: {@code all_roles + all_levels + tag}</li>
-     * </ol>
-     */
-    public static ArmorSetData getData(String role, int level, String tag) {
-        // Priority 1: exact match (e.g. naturalist/3/magiccloth_armor)
-        ArmorSetData data = DATA_MAP.get(makeKey(role, level, tag));
-        if (data != null) return data;
+    private static final ArmorSetDataRegistry SERVER = new ArmorSetDataRegistry();
+    private static final ArmorSetDataRegistry CLIENT = new ArmorSetDataRegistry();
 
-        // Priority 2: all_roles for this level (e.g. all_roles/3/magiccloth_armor)
-        data = DATA_MAP.get(makeKey(WILDCARD_ROLE, level, tag));
-        if (data != null) return data;
+    private static final Gson GSON = new Gson();
+    private static final Type DATA_MAP_TYPE = new TypeToken<Map<String, ArmorSetData>>() {}.getType();
 
-        // Priority 3: all_roles_all_levels (e.g. all_roles_all_levels/magiccloth_armor)
-        return DATA_MAP.get(makeKey(WILDCARD_ROLE, WILDCARD_LEVEL, tag));
+    private volatile Snapshot snapshot = Snapshot.EMPTY;
+
+    private ArmorSetDataRegistry() {
+    }
+
+    /** @return the registry used by server logic (set effects, commands) */
+    public static ArmorSetDataRegistry server() {
+        return SERVER;
+    }
+
+    /** @return the registry received from the server (tooltips, editor) */
+    public static ArmorSetDataRegistry client() {
+        return CLIENT;
     }
 
     /**
-     * Returns all tag strings relevant for a given role/level,
-     * including wildcard entries. Specific entries take priority
-     * (the same tag won't appear twice).
+     * One loaded set definition.
+     *
+     * @param role   lower-case role, or {@link #WILDCARD_ROLE}
+     * @param level  level, or {@link #WILDCARD_LEVEL}
+     * @param tag    item tag id as string, e.g. {@code c:armors}
+     * @param tagKey the parsed item tag
+     * @param data   the set definition
      */
-    public static Set<String> getRegisteredTags(String role, int level) {
-        // Use a map to track priority: tag → already found at higher priority?
-        Map<String, Boolean> tagMap = new HashMap<>();
+    public record SetEntry(String role, int level, String tag, TagKey<Item> tagKey, ArmorSetData data) {
 
-        // Priority 1: exact match
-        String exactPrefix = role + ":" + level + ":";
-        // Priority 2: all_roles for this level
-        String wildcardRolePrefix = WILDCARD_ROLE + ":" + level + ":";
-        // Priority 3: all_roles_all_levels
-        String wildcardBothPrefix = WILDCARD_ROLE + ":" + WILDCARD_LEVEL + ":";
-
-        for (String key : DATA_MAP.keySet()) {
-            String tag = null;
-            if (key.startsWith(exactPrefix)) {
-                tag = key.substring(exactPrefix.length());
-            } else if (key.startsWith(wildcardRolePrefix)) {
-                tag = key.substring(wildcardRolePrefix.length());
-            } else if (key.startsWith(wildcardBothPrefix)) {
-                tag = key.substring(wildcardBothPrefix.length());
-            }
-
-            if (tag != null) {
-                tagMap.putIfAbsent(tag, true);
-            }
+        /** @return whether the entry applies to every role */
+        public boolean isWildcardRole() {
+            return WILDCARD_ROLE.equals(role);
         }
 
-        return Collections.unmodifiableSet(tagMap.keySet());
+        /** @return whether the entry applies to every level */
+        public boolean isWildcardLevel() {
+            return level == WILDCARD_LEVEL;
+        }
+
+        /** @return a translatable description of role and level, e.g. "naturalist / Level 3" */
+        public Component scopeLabel() {
+            if (isWildcardRole() && isWildcardLevel()) {
+                return Component.translatable("gui.setweaver.scope.universal");
+            }
+            if (isWildcardRole()) {
+                return Component.translatable("gui.setweaver.scope.all_roles", level);
+            }
+            return Component.translatable("gui.setweaver.scope.specific", role, level);
+        }
     }
 
+    /**
+     * Creates an entry, parsing the tag.
+     *
+     * @return the entry, or {@code null} if {@code tag} is not a valid id
+     */
+    public static SetEntry createEntry(String role, int level, String tag, ArmorSetData data) {
+        ResourceLocation id = ResourceLocation.tryParse(tag);
+        if (id == null || data == null) {
+            return null;
+        }
+        return new SetEntry(normalizeRole(role), level, id.toString(), TagKey.create(Registries.ITEM, id), data);
+    }
 
-    public static boolean isItemInAnyRegisteredTag(ItemStack stack) {
-        for (String key : DATA_MAP.keySet()) {
-            // Key format: "role:level:namespace:tagpath"
-            // Tag ist alles ab dem 3. Doppelpunkt
-            String[] parts = key.split(":", 3);
-            if (parts.length < 3) continue;
-            String tagString = parts[2]; // z.B. "zauberei:magiccloth_armor"
-            try {
-                ResourceLocation tagLoc = ResourceLocation.parse(tagString);
-                TagKey<Item> tagKey = TagKey.create(Registries.ITEM, tagLoc);
-                if (stack.is(tagKey)) return true;
-            } catch (Exception e) {
-                continue;
+    /**
+     * Normalizes a role name for lookups.
+     *
+     * @param role the role as typed
+     * @return the lower-case role, empty for {@code null}
+     */
+    public static String normalizeRole(String role) {
+        return role == null ? "" : role.toLowerCase(Locale.ROOT);
+    }
+
+    /**
+     * Replaces all definitions at once.
+     *
+     * @param entries the new definitions
+     */
+    public void replaceAll(Collection<SetEntry> entries) {
+        Map<String, SetEntry> byKey = new LinkedHashMap<>();
+        for (SetEntry entry : entries) {
+            byKey.put(makeKey(entry.role(), entry.level(), entry.tag()), entry);
+        }
+        snapshot = new Snapshot(Collections.unmodifiableMap(byKey));
+    }
+
+    /** Removes all definitions. */
+    public void clear() {
+        snapshot = Snapshot.EMPTY;
+    }
+
+    /**
+     * Returns the set for a role / level / tag with fallback: exact match, then all roles for the level, then all
+     * roles and levels.
+     *
+     * @return the data, or {@code null} if no scope matches
+     */
+    public ArmorSetData getData(String role, int level, String tag) {
+        SetEntry entry = findEntry(snapshot, normalizeRole(role), level, tag);
+        return entry == null ? null : entry.data();
+    }
+
+    /**
+     * Returns the entry with exactly this scope (no wildcard fallback).
+     *
+     * @return the entry, or {@code null}
+     */
+    public SetEntry getExact(String tag, String role, int level) {
+        return snapshot.byKey.get(makeKey(normalizeRole(role), level, tag));
+    }
+
+    /**
+     * Returns, for every tag, the most specific entry that applies to a player with the given role and level.
+     *
+     * @param role  the player's role (any case, may be empty)
+     * @param level the player's level
+     * @return one entry per tag
+     */
+    public List<SetEntry> getApplicableEntries(String role, int level) {
+        Snapshot current = snapshot;
+        String normalized = normalizeRole(role);
+        Map<String, SetEntry> byTag = new LinkedHashMap<>();
+        for (SetEntry entry : current.byKey.values()) {
+            if (!byTag.containsKey(entry.tag())) {
+                SetEntry best = findEntry(current, normalized, level, entry.tag());
+                if (best != null) {
+                    byTag.put(entry.tag(), best);
+                }
+            }
+        }
+        return new ArrayList<>(byTag.values());
+    }
+
+    /**
+     * @param stack the item to check
+     * @return whether the item is in the tag of any loaded set (regardless of role and level)
+     */
+    public boolean isItemInAnyRegisteredTag(ItemStack stack) {
+        for (TagKey<Item> tag : snapshot.tagKeys) {
+            if (stack.is(tag)) {
+                return true;
             }
         }
         return false;
     }
-    /**
-     * Returns all real role names registered in the data map.
-     * Excludes the wildcard sentinel ({@code "*"}) so that command
-     * auto-completion only suggests actual roles.
-     */
-    public static Set<String> getRoles() {
-        return Collections.unmodifiableSet(
-                DATA_MAP.keySet().stream()
-                        .map(key -> key.split(":", 2)[0])
-                        .filter(m -> !WILDCARD_ROLE.equals(m))
-                        .collect(Collectors.toSet())
-        );
+
+    /** @return all real role names (without the wildcard), sorted */
+    public Set<String> getRoles() {
+        return snapshot.roles;
     }
 
-    // ─── Record for structured iteration ─────────────────────────────────
+    /** @return all loaded entries */
+    public List<SetEntry> getAllEntries() {
+        return new ArrayList<>(snapshot.byKey.values());
+    }
 
-    /**
-     * Represents one loaded set entry with parsed key components.
-     * Used by commands like {@code /zauberei sets list} and {@code info}.
-     */
-    public record SetEntry(String role, int level, String tag, ArmorSetData data) {
-
-        /**
-         * Human-readable scope description for chat output.
-         * @return e.g. "naturalist / Level 3", "ALL Roles / Level 1", "ALL Roles / ALL Levels"
-         */
-        public String scopeLabel() {
-            boolean wildRole = WILDCARD_ROLE.equals(role);
-            boolean wildLevel  = level == WILDCARD_LEVEL;
-            if (wildRole && wildLevel) return "ALL Roles / ALL Levels";
-            if (wildRole)             return "ALL Roles / Level " + level;
-            return role + " / Level " + level;
-        }
+    /** @return the registry as JSON for the client sync packet */
+    public String serializeToJson() {
+        Map<String, ArmorSetData> map = new LinkedHashMap<>();
+        snapshot.byKey.forEach((key, entry) -> map.put(key, entry.data()));
+        return GSON.toJson(map);
     }
 
     /**
-     * Returns ALL loaded set entries as structured records.
-     * Useful for listing, validation, and debug commands.
+     * Replaces the contents with a JSON string produced by {@link #serializeToJson()}. Malformed input is logged and
+     * leaves the registry empty instead of throwing.
+     *
+     * @param json the received JSON
      */
-    public static List<SetEntry> getAllEntries() {
+    public void deserializeFromJson(String json) {
         List<SetEntry> entries = new ArrayList<>();
-        for (Map.Entry<String, ArmorSetData> e : DATA_MAP.entrySet()) {
-            String[] parts = e.getKey().split(":", 3);
-            if (parts.length < 3) continue;
-            String role = parts[0];
-            int level;
-            try { level = Integer.parseInt(parts[1]); } catch (NumberFormatException ex) { continue; }
-            String tag = parts[2];
-            entries.add(new SetEntry(role, level, tag, e.getValue()));
+        try {
+            Map<String, ArmorSetData> incoming = GSON.fromJson(json, DATA_MAP_TYPE);
+            if (incoming != null) {
+                incoming.forEach((key, data) -> {
+                    SetEntry entry = parseKey(key, data);
+                    if (entry != null) {
+                        entries.add(entry);
+                    }
+                });
+            }
+        } catch (RuntimeException e) {
+            SetWeaver.LOGGER.error("[SetWeaver] Could not read set definitions from the server: {}", e.getMessage());
         }
-        return entries;
+        replaceAll(entries);
     }
 
-    /**
-     * Returns all unique tag strings across ALL entries (regardless of role/level).
-     * Used for command auto-completion of tag arguments.
-     */
-    public static Set<String> getAllTags() {
-        return Collections.unmodifiableSet(
-                DATA_MAP.keySet().stream()
-                        .map(key -> {
-                            String[] parts = key.split(":", 3);
-                            return parts.length >= 3 ? parts[2] : null;
-                        })
-                        .filter(t -> t != null)
-                        .collect(Collectors.toSet())
-        );
+    private static SetEntry findEntry(Snapshot current, String role, int level, String tag) {
+        SetEntry entry = current.byKey.get(makeKey(role, level, tag));
+        if (entry == null) {
+            entry = current.byKey.get(makeKey(WILDCARD_ROLE, level, tag));
+        }
+        if (entry == null) {
+            entry = current.byKey.get(makeKey(WILDCARD_ROLE, WILDCARD_LEVEL, tag));
+        }
+        return entry;
     }
 
-
-
+    // Key format: "role:level:namespace:path"
     private static String makeKey(String role, int level, String tag) {
         return role + ":" + level + ":" + tag;
     }
 
-    // ─── Serialization for network sync ──────────────────────────────────
-
-    private static final Gson GSON = new GsonBuilder().create();
-    private static final Type DATA_MAP_TYPE = new TypeToken<Map<String, ArmorSetData>>() {}.getType();
-
-    /**
-     * Serializes the entire registry to a JSON string for network transmission.
-     * Called on the server to build the {@link com.gilfort.setweaver.network.RegistrySyncPayload}.
-     */
-    public static String serializeToJson() {
-        return GSON.toJson(DATA_MAP);
+    private static SetEntry parseKey(String key, ArmorSetData data) {
+        String[] parts = key.split(":", 3);
+        if (parts.length < 3) {
+            return null;
+        }
+        try {
+            return createEntry(parts[0], Integer.parseInt(parts[1]), parts[2], data);
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
-    /**
-     * Replaces the entire registry contents from a JSON string received from the server.
-     * Called on the client when a {@link com.gilfort.setweaver.network.RegistrySyncPayload} arrives.
-     */
-    public static void deserializeFromJson(String json) {
-        DATA_MAP.clear();
-        Map<String, ArmorSetData> incoming = GSON.fromJson(json, DATA_MAP_TYPE);
-        if (incoming != null) {
-            DATA_MAP.putAll(incoming);
+    /** Immutable registry state with derived lookups. */
+    private static final class Snapshot {
+        static final Snapshot EMPTY = new Snapshot(Map.of());
+
+        final Map<String, SetEntry> byKey;
+        final List<TagKey<Item>> tagKeys;
+        final Set<String> roles;
+
+        Snapshot(Map<String, SetEntry> byKey) {
+            this.byKey = byKey;
+            Set<TagKey<Item>> tags = new java.util.LinkedHashSet<>();
+            Set<String> roleNames = new TreeSet<>();
+            for (SetEntry entry : byKey.values()) {
+                tags.add(entry.tagKey());
+                if (!entry.isWildcardRole()) {
+                    roleNames.add(entry.role());
+                }
+            }
+            this.tagKeys = List.copyOf(tags);
+            this.roles = Collections.unmodifiableSet(roleNames);
         }
     }
 }

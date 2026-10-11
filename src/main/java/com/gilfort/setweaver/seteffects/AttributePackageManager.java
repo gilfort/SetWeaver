@@ -1,240 +1,249 @@
 package com.gilfort.setweaver.seteffects;
 
 import com.gilfort.setweaver.SetWeaver;
-import com.google.gson.*;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 import net.neoforged.fml.loading.FMLPaths;
 
-import java.io.*;
+import java.io.IOException;
+import java.io.Reader;
 import java.lang.reflect.Type;
-import java.util.*;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Set;
 
 /**
- * Manages "attribute packages" — named groups of attributes that are displayed
- * as a single collapsed line in armor set tooltips.
+ * Attribute packages: named groups of attributes that tooltips collapse into one line (hold ALT to expand).
+ * A package only collapses when at least two of its attributes are present; among several matching packages the
+ * one with the lowest priority value wins.
  *
- * <p>When a set bonus grants multiple attributes that all belong to the same package,
- * the tooltip shows the package name instead of listing each attribute individually.
- * The player can hold ALT to expand the package and see the individual attributes.</p>
- *
- * <p>If only ONE attribute from a package is present in a set bonus, it is shown
- * directly (no collapsing).</p>
- *
- * <h3>Config location</h3>
- * {@code config/setweaver/attribute_packages.json}
- *
- * @see ArmorSetData.AttributeData
+ * <p>Stored in {@code config/setweaver/attribute_packages.json} on the server and synced to clients. Like
+ * {@link ArmorSetDataRegistry} there is one instance per logical side.</p>
  */
-public class AttributePackageManager {
+public final class AttributePackageManager {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-    private static final File CONFIG_FILE = new File(
-            FMLPaths.CONFIGDIR.get().toFile(),
-            "setweaver" + File.separator + "attribute_packages.json"
-    );
+    private static final Type LIST_TYPE = new TypeToken<List<AttributePackage>>() {}.getType();
 
-    /** All loaded packages, keyed by package name. */
-    private static final List<AttributePackage> PACKAGES = new ArrayList<>();
+    private static final AttributePackageManager SERVER = new AttributePackageManager();
+    private static final AttributePackageManager CLIENT = new AttributePackageManager();
 
-    /**
-     * A named group of attribute IDs that should be displayed together.
-     *
-     * <p>When an attribute belongs to multiple packages, the package with the
-     * <b>lowest priority value</b> wins (0 = highest priority).</p>
-     */
+    /** All packages, including disabled ones, sorted by priority. */
+    private volatile List<AttributePackage> all = List.of();
+    /** Enabled packages with at least two attributes, sorted by priority. */
+    private volatile List<AttributePackage> active = List.of();
+
+    private AttributePackageManager() {
+    }
+
+    /** @return the packages loaded from the server config */
+    public static AttributePackageManager server() {
+        return SERVER;
+    }
+
+    /** @return the packages received from the server */
+    public static AttributePackageManager client() {
+        return CLIENT;
+    }
+
+    /** A named group of attribute ids. */
     public static class AttributePackage {
         private String name;
         private boolean enabled = true;
         private int priority = 100;
-        private List<String> attributes;
+        private List<String> attributes = new ArrayList<>();
 
-        public String getName() { return name; }
-        public boolean isEnabled() { return enabled; }
-        public int getPriority() { return priority; }
-        public List<String> getAttributes() { return attributes; }
+        /** @return the display name */
+        public String getName() {
+            return name;
+        }
 
-        public void setName(String name) { this.name = name; }
-        public void setEnabled(boolean enabled) { this.enabled = enabled; }
-        public void setPriority(int priority) { this.priority = priority; }
-        public void setAttributes(List<String> attributes) { this.attributes = attributes; }
+        /** @return whether the package is used in tooltips */
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        /** @return the priority, lower values win */
+        public int getPriority() {
+            return priority;
+        }
+
+        /** @return the attribute ids, never {@code null} */
+        public List<String> getAttributes() {
+            return attributes == null ? List.of() : attributes;
+        }
+
+        /** @param name the display name */
+        public void setName(String name) {
+            this.name = name;
+        }
+
+        /** @param enabled whether the package is used in tooltips */
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        /** @param priority the priority, lower values win */
+        public void setPriority(int priority) {
+            this.priority = priority;
+        }
+
+        /** @param attributes the attribute ids */
+        public void setAttributes(List<String> attributes) {
+            this.attributes = attributes;
+        }
+
+        /** @return a deep copy with a mutable attribute list */
+        public AttributePackage copy() {
+            AttributePackage copy = new AttributePackage();
+            copy.name = name;
+            copy.enabled = enabled;
+            copy.priority = priority;
+            copy.attributes = new ArrayList<>(getAttributes());
+            return copy;
+        }
     }
 
-    /** Wrapper for JSON root object. */
+    /** JSON root object of the config file. */
     private static class PackagesConfig {
         List<AttributePackage> packages = new ArrayList<>();
     }
 
-    // ─── Loading ─────────────────────────────────────────────────────────
-
     /**
-     * Loads attribute packages from the config file.
-     * Creates a default file with a disabled "Defense" example if it doesn't exist.
+     * Replaces all packages.
+     *
+     * @param packages the new packages (copied)
      */
-    public static void loadFromConfig() {
-        PACKAGES.clear();
-        ALL_PACKAGES.clear();
-
-        if (!CONFIG_FILE.exists()) {
-            writeDefaultConfig();
-            SetWeaver.LOGGER.info("[SetWeaver] Created default attribute_packages.json");
-            return; // default has only disabled packages
-        }
-
-        try (FileReader reader = new FileReader(CONFIG_FILE)) {
-            PackagesConfig config = GSON.fromJson(reader, PackagesConfig.class);
-            if (config != null && config.packages != null) {
-                for (AttributePackage pkg : config.packages) {
-                    if (pkg.getAttributes() == null) pkg.setAttributes(new ArrayList<>());
-                    ALL_PACKAGES.add(pkg);
-                    if (pkg.isEnabled() && pkg.getAttributes().size() >= 2) {
-                        PACKAGES.add(pkg);
-                    }
-                }
+    public void setPackages(List<AttributePackage> packages) {
+        List<AttributePackage> sorted = new ArrayList<>();
+        for (AttributePackage pkg : packages) {
+            if (pkg != null) {
+                sorted.add(pkg.copy());
             }
-            // Sort active packages by priority (lowest first = highest priority)
-            PACKAGES.sort(Comparator.comparingInt(AttributePackage::getPriority));
-            ALL_PACKAGES.sort(Comparator.comparingInt(AttributePackage::getPriority));
-            SetWeaver.LOGGER.info("[SetWeaver] Loaded {} active attribute package(s)", PACKAGES.size());
-        } catch (Exception e) {
-            SetWeaver.LOGGER.error("[SetWeaver] Failed to load attribute_packages.json: {}", e.getMessage());
         }
+        sorted.sort(Comparator.comparingInt(AttributePackage::getPriority));
+        all = List.copyOf(sorted);
+        active = sorted.stream().filter(p -> p.isEnabled() && p.getAttributes().size() >= 2).toList();
     }
 
-    // ─── Querying ────────────────────────────────────────────────────────
-
-    /**
-     * Returns the list of currently loaded (enabled) packages.
-     */
-    public static List<AttributePackage> getPackages() {
-        return Collections.unmodifiableList(PACKAGES);
+    /** @return all packages including disabled ones (read-only, copy before editing) */
+    public List<AttributePackage> getAllPackages() {
+        return all;
     }
 
     /**
-     * Finds the package that contains the given attribute ID, or {@code null}
-     * if the attribute doesn't belong to any package.
+     * Finds the package an attribute is shown in, given the other attributes of the same set bonus.
+     *
+     * @param attributeId       the attribute to look up
+     * @param presentAttributes all attribute ids of the set bonus
+     * @return the best matching package, or {@code null}
      */
-    public static AttributePackage findPackageFor(String attributeId) {
-        for (AttributePackage pkg : PACKAGES) {
-            if (pkg.getAttributes().contains(attributeId)) {
+    public AttributePackage findBestPackageFor(String attributeId, Set<String> presentAttributes) {
+        for (AttributePackage pkg : active) {
+            if (!pkg.getAttributes().contains(attributeId)) {
+                continue;
+            }
+            long matchCount = pkg.getAttributes().stream().filter(presentAttributes::contains).count();
+            if (matchCount >= 2) {
+                // active is sorted by priority, so the first match wins
                 return pkg;
             }
         }
         return null;
     }
 
+    /** @return all packages as JSON for the client sync packet */
+    public String serializeToJson() {
+        return GSON.toJson(all);
+    }
+
     /**
-     * Context-aware package resolution: finds the best package for an attribute
-     * considering which other attributes are actually present in the set bonus.
+     * Replaces the packages with a JSON list. Malformed input is logged and clears the packages.
      *
-     * <p>A package is only a valid match if at least 2 of its attributes are present
-     * in {@code presentAttributes}. Among valid packages, the one with the lowest
-     * priority value (= highest priority) wins.</p>
-     *
-     * @param attributeId       the attribute to find a package for
-     * @param presentAttributes all attribute IDs present in the current set bonus tier
-     * @return the best matching package, or {@code null}
+     * @param json the JSON list
      */
-    public static AttributePackage findBestPackageFor(String attributeId, Set<String> presentAttributes) {
-        AttributePackage best = null;
-        for (AttributePackage pkg : PACKAGES) {
-            if (!pkg.getAttributes().contains(attributeId)) continue;
+    public void deserializeFromJson(String json) {
+        setPackages(parseList(json));
+    }
 
-            // Count how many of this package's attributes are actually present
-            long matchCount = pkg.getAttributes().stream()
-                    .filter(presentAttributes::contains)
-                    .count();
-            if (matchCount < 2) continue; // not enough to form a group
-
-            if (best == null || pkg.getPriority() < best.getPriority()) {
-                best = pkg;
-            }
+    /**
+     * Parses a JSON list of packages.
+     *
+     * @param json the JSON list
+     * @return the packages, empty if the input is blank or malformed
+     */
+    public static List<AttributePackage> parseList(String json) {
+        if (json == null || json.isBlank()) {
+            return List.of();
         }
-        return best;
-    }
-
-    // ─── Serialization (for network sync) ────────────────────────────────
-
-    /**
-     * Serializes the currently loaded packages to a JSON string for network sync.
-     */
-    public static String serializeToJson() {
-        return GSON.toJson(PACKAGES);
-    }
-
-    /**
-     * Deserializes packages from a JSON string (received from server).
-     * Replaces the current in-memory packages.
-     */
-    public static void deserializeFromJson(String json) {
-        PACKAGES.clear();
-        if (json == null || json.isBlank()) return;
-
         try {
-            Type listType = new TypeToken<List<AttributePackage>>() {}.getType();
-            List<AttributePackage> list = GSON.fromJson(json, listType);
-            if (list != null) {
-                PACKAGES.addAll(list);
-            }
-        } catch (Exception e) {
-            SetWeaver.LOGGER.error("[SetWeaver] Failed to deserialize attribute packages: {}", e.getMessage());
+            List<AttributePackage> list = GSON.fromJson(json, LIST_TYPE);
+            return list == null ? List.of() : list;
+        } catch (RuntimeException e) {
+            SetWeaver.LOGGER.error("[SetWeaver] Could not read attribute packages: {}", e.getMessage());
+            return List.of();
         }
     }
 
-    // ─── Editing (for in-game Package Editor) ──────────────────────────
+    // ─── Server-side config file ─────────────────────────────────────────
 
-    /** All packages from config (including disabled), for the editor GUI. */
-    private static final List<AttributePackage> ALL_PACKAGES = new ArrayList<>();
+    private static Path configFile() {
+        return FMLPaths.CONFIGDIR.get().resolve("setweaver").resolve("attribute_packages.json");
+    }
 
-    /**
-     * Returns ALL packages (including disabled), for the editor GUI.
-     */
-    public static List<AttributePackage> getAllPackages() {
-        return ALL_PACKAGES;
+    /** Loads the config file into {@link #server()}, writing the default file first if it is missing. */
+    public static void loadFromConfig() {
+        Path file = configFile();
+        if (!Files.exists(file)) {
+            writeConfig(defaultPackages());
+            SetWeaver.LOGGER.info("[SetWeaver] Created default attribute_packages.json");
+        }
+        try (Reader reader = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
+            PackagesConfig config = GSON.fromJson(reader, PackagesConfig.class);
+            SERVER.setPackages(config == null || config.packages == null ? List.of() : config.packages);
+            SetWeaver.LOGGER.info("[SetWeaver] Loaded {} attribute package(s)", SERVER.all.size());
+        } catch (IOException | RuntimeException e) {
+            SetWeaver.LOGGER.error("[SetWeaver] Failed to load attribute_packages.json: {}", e.getMessage());
+            SERVER.setPackages(List.of());
+        }
     }
 
     /**
-     * Saves the given list of packages to the config file and reloads.
+     * Writes the packages to the config file and reloads {@link #server()}.
+     *
+     * @param packages the packages to store
+     * @return whether writing succeeded
      */
-    public static void saveAndReload(List<AttributePackage> packages) {
-        CONFIG_FILE.getParentFile().mkdirs();
+    public static boolean saveAndReload(List<AttributePackage> packages) {
+        boolean ok = writeConfig(packages);
+        loadFromConfig();
+        return ok;
+    }
 
+    private static boolean writeConfig(List<AttributePackage> packages) {
         PackagesConfig config = new PackagesConfig();
         config.packages = new ArrayList<>(packages);
-
-        try (FileWriter writer = new FileWriter(CONFIG_FILE)) {
-            GSON.toJson(config, writer);
-            SetWeaver.LOGGER.info("[SetWeaver] Saved {} attribute package(s) to config", packages.size());
+        try {
+            Path file = configFile();
+            Files.createDirectories(file.getParent());
+            Files.writeString(file, GSON.toJson(config), StandardCharsets.UTF_8);
+            return true;
         } catch (IOException e) {
             SetWeaver.LOGGER.error("[SetWeaver] Failed to save attribute_packages.json: {}", e.getMessage());
+            return false;
         }
-
-        // Reload active packages into memory
-        loadFromConfig();
     }
 
-    // ─── Default Config ──────────────────────────────────────────────────
-
-    private static void writeDefaultConfig() {
-        // Ensure parent directory exists
-        CONFIG_FILE.getParentFile().mkdirs();
-
-        PackagesConfig defaultConfig = new PackagesConfig();
-
-        // Add the disabled "Defense" example
+    private static List<AttributePackage> defaultPackages() {
         AttributePackage defense = new AttributePackage();
         defense.setName("Defense");
         defense.setEnabled(false);
-        defense.setAttributes(List.of(
-                "minecraft:generic.armor",
-                "minecraft:generic.armor_toughness"
-        ));
-        defaultConfig.packages.add(defense);
-        ALL_PACKAGES.add(defense);
-
-        try (FileWriter writer = new FileWriter(CONFIG_FILE)) {
-            GSON.toJson(defaultConfig, writer);
-        } catch (IOException e) {
-            SetWeaver.LOGGER.error("[SetWeaver] Could not write default attribute_packages.json: {}", e.getMessage());
-        }
+        defense.setAttributes(new ArrayList<>(List.of("minecraft:generic.armor", "minecraft:generic.armor_toughness")));
+        return List.of(defense);
     }
 }

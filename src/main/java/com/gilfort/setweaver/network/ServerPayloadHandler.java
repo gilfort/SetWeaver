@@ -1,129 +1,242 @@
 package com.gilfort.setweaver.network;
 
 import com.gilfort.setweaver.SetWeaver;
-import com.gilfort.setweaver.seteffects.ArmorSetDataRegistry;
+import com.gilfort.setweaver.seteffects.ArmorSetData;
 import com.gilfort.setweaver.seteffects.AttributePackageManager;
+import com.gilfort.setweaver.seteffects.SetFiles;
 import com.gilfort.setweaver.seteffects.SetWeaverReloadListener;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
+import net.minecraft.ChatFormatting;
+import net.minecraft.SharedConstants;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
-import net.neoforged.fml.loading.FMLPaths;
+import net.minecraft.server.packs.PackType;
+import net.minecraft.world.level.storage.LevelResource;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
-import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 
 /**
- * Handles payloads received on the SERVER side.
- * All handlers verify OP level 2 before processing.
+ * Handles client → server packets of the editor. Every handler runs on the server thread, checks operator level 2
+ * and treats all input as untrusted.
  */
-public class ServerPayloadHandler {
+public final class ServerPayloadHandler {
 
-    public static void handleSaveSet(final SaveSetPayload payload,
-                                     final IPayloadContext context) {
+    /** Operator level needed for all editor actions. */
+    public static final int PERMISSION_LEVEL = 2;
+
+    /** Name of the world datapack that receives tags created in the editor. */
+    public static final String CUSTOM_DATAPACK = "setweaver_custom";
+
+    private ServerPayloadHandler() {
+    }
+
+    /** Handles {@link SaveSetPayload}. */
+    public static void handleSaveSet(SaveSetPayload payload, IPayloadContext context) {
         context.enqueueWork(() -> {
-            ServerPlayer sender = (ServerPlayer) context.player();
-            if (!sender.hasPermissions(2)) {
-                sender.sendSystemMessage(Component.literal("[SetWeaver] Permission denied."));
+            ServerPlayer sender = authorized(context);
+            if (sender == null) {
                 return;
             }
-
+            Optional<Path> target = SetFiles.resolveClientPath(payload.relativePath());
+            if (target.isEmpty()) {
+                fail(sender, "message.setweaver.invalid_path");
+                return;
+            }
+            ArmorSetData data;
             try {
-                File baseDir = new File(FMLPaths.CONFIGDIR.get().toFile(),
-                        "setweaver" + File.separator + "set_armor");
-                File target = new File(baseDir, payload.relativePath());
+                data = SetWeaverReloadListener.GSON.fromJson(payload.jsonContent(), ArmorSetData.class);
+            } catch (JsonParseException | IllegalStateException e) {
+                fail(sender, "message.setweaver.invalid_set");
+                return;
+            }
+            if (data == null || data.getParts() == null || data.getParts().isEmpty()) {
+                fail(sender, "message.setweaver.invalid_set");
+                return;
+            }
+            try {
+                Files.createDirectories(target.get().getParent());
+                Files.writeString(target.get(), SetWeaverReloadListener.GSON.toJson(data), StandardCharsets.UTF_8);
+            } catch (IOException e) {
+                SetWeaver.LOGGER.error("[SetWeaver] Failed to save set {}: {}", target.get(), e.getMessage());
+                fail(sender, "message.setweaver.save_failed");
+                return;
+            }
+            reloadAndSync(sender);
+            success(sender, "message.setweaver.set_saved", payload.relativePath());
+        });
+    }
 
-                if (!target.getCanonicalPath().startsWith(baseDir.getCanonicalPath())) {
-                    sender.sendSystemMessage(Component.literal("[SetWeaver] Invalid file path."));
+    /** Handles {@link DeleteSetPayload}. */
+    public static void handleDeleteSet(DeleteSetPayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> {
+            ServerPlayer sender = authorized(context);
+            if (sender == null) {
+                return;
+            }
+            Optional<Path> target = SetFiles.resolveClientPath(payload.relativePath());
+            if (target.isEmpty()) {
+                fail(sender, "message.setweaver.invalid_path");
+                return;
+            }
+            try {
+                if (!Files.deleteIfExists(target.get())) {
+                    fail(sender, "message.setweaver.set_not_found");
                     return;
                 }
-
-                target.getParentFile().mkdirs();
-                try (FileWriter writer = new FileWriter(target)) {
-                    writer.write(payload.jsonContent());
-                }
-
-                SetWeaverReloadListener.loadAllEffects();
-                broadcastRegistrySync(sender);
-
-                sender.sendSystemMessage(Component.literal("[SetWeaver] Set saved and synced."));
-
             } catch (IOException e) {
-                SetWeaver.LOGGER.error("[SetWeaver] Failed to save set: {}", e.getMessage());
-                sender.sendSystemMessage(
-                        Component.literal("[SetWeaver] Failed to save: " + e.getMessage()));
+                SetWeaver.LOGGER.error("[SetWeaver] Failed to delete set {}: {}", target.get(), e.getMessage());
+                fail(sender, "message.setweaver.delete_failed");
+                return;
             }
+            reloadAndSync(sender);
+            success(sender, "message.setweaver.set_deleted", payload.relativePath());
         });
     }
 
-    public static void handleSaveTag(final SaveTagPayload payload,
-                                     final IPayloadContext context) {
+    /** Handles {@link SaveTagPayload}. */
+    public static void handleSaveTag(SaveTagPayload payload, IPayloadContext context) {
         context.enqueueWork(() -> {
-            ServerPlayer sender = (ServerPlayer) context.player();
-            if (!sender.hasPermissions(2)) {
-                sender.sendSystemMessage(Component.literal("[SetWeaver] Permission denied."));
+            ServerPlayer sender = authorized(context);
+            if (sender == null) {
+                return;
+            }
+            ResourceLocation tagId = ResourceLocation.tryBuild(payload.namespace(), payload.tagName());
+            if (tagId == null || tagId.getPath().contains("..")) {
+                fail(sender, "message.setweaver.invalid_tag");
+                return;
+            }
+            Set<String> items = new LinkedHashSet<>();
+            for (String raw : payload.items()) {
+                ResourceLocation itemId = ResourceLocation.tryParse(raw);
+                if (itemId != null && BuiltInRegistries.ITEM.containsKey(itemId)) {
+                    items.add(itemId.toString());
+                }
+            }
+            if (items.isEmpty()) {
+                fail(sender, "message.setweaver.tag_empty");
                 return;
             }
 
+            Path datapack = sender.getServer().getWorldPath(LevelResource.DATAPACK_DIR).resolve(CUSTOM_DATAPACK).normalize();
+            Path tagFile = datapack.resolve("data").resolve(tagId.getNamespace()).resolve("tags").resolve("item")
+                    .resolve(tagId.getPath() + ".json").normalize();
+            if (!tagFile.startsWith(datapack)) {
+                fail(sender, "message.setweaver.invalid_tag");
+                return;
+            }
             try {
-                File worldDir = sender.getServer().getWorldPath(
-                        net.minecraft.world.level.storage.LevelResource.ROOT).toFile();
-                File datapackDir = new File(worldDir,
-                        "datapacks" + File.separator + "setweaver_custom");
-
-                File packMcmeta = new File(datapackDir, "pack.mcmeta");
-                if (!packMcmeta.exists()) {
-                    datapackDir.mkdirs();
-                    try (FileWriter w = new FileWriter(packMcmeta)) {
-                        w.write("{\"pack\":{\"pack_format\":34,\"description\":\"SetWeaver custom tags\"}}");
-                    }
-                }
-
-                File tagFile = new File(datapackDir,
-                        "data" + File.separator + payload.namespace()
-                                + File.separator + "tags" + File.separator + "item"
-                                + File.separator + payload.tagName() + ".json");
-                tagFile.getParentFile().mkdirs();
-
-                String tagJson = "{\"replace\":false,\"values\":" + payload.itemsJson() + "}";
-                try (FileWriter writer = new FileWriter(tagFile)) {
-                    writer.write(tagJson);
-                }
-
-                sender.sendSystemMessage(Component.literal(
-                        "[SetWeaver] Tag saved. Run /reload to activate."));
-
+                Files.createDirectories(tagFile.getParent());
+                Files.writeString(datapack.resolve("pack.mcmeta"), packMcmeta(), StandardCharsets.UTF_8);
+                JsonObject tag = new JsonObject();
+                tag.addProperty("replace", false);
+                JsonArray values = new JsonArray();
+                items.forEach(values::add);
+                tag.add("values", values);
+                Files.writeString(tagFile, tag.toString(), StandardCharsets.UTF_8);
             } catch (IOException e) {
-                SetWeaver.LOGGER.error("[SetWeaver] Failed to save tag: {}", e.getMessage());
-                sender.sendSystemMessage(
-                        Component.literal("[SetWeaver] Failed to save tag: " + e.getMessage()));
-            }
-        });
-    }
-
-    public static void handleReloadRequest(final ReloadRequestPayload payload,
-                                           final IPayloadContext context) {
-        context.enqueueWork(() -> {
-            ServerPlayer sender = (ServerPlayer) context.player();
-            if (!sender.hasPermissions(2)) {
-                sender.sendSystemMessage(Component.literal("[SetWeaver] Permission denied."));
+                SetWeaver.LOGGER.error("[SetWeaver] Failed to save tag {}: {}", tagId, e.getMessage());
+                fail(sender, "message.setweaver.tag_save_failed");
                 return;
             }
-
-            SetWeaverReloadListener.loadAllEffects();
-            broadcastRegistrySync(sender);
-
-            sender.sendSystemMessage(Component.literal("[SetWeaver] Reloaded and synced to all players."));
+            success(sender, "message.setweaver.tag_saved", tagId.toString());
         });
     }
 
-    private static void broadcastRegistrySync(ServerPlayer sender) {
-        String registryJson = ArmorSetDataRegistry.serializeToJson();
-        String packagesJson = AttributePackageManager.serializeToJson();
-        sender.getServer().getPlayerList().getPlayers().forEach(player ->
-                PacketDistributor.sendToPlayer(player,
-                        new RegistrySyncPayload(registryJson, packagesJson))
-        );
+    /** Handles {@link SavePackagesPayload}. */
+    public static void handleSavePackages(SavePackagesPayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> {
+            ServerPlayer sender = authorized(context);
+            if (sender == null) {
+                return;
+            }
+            List<AttributePackageManager.AttributePackage> packages = new ArrayList<>();
+            for (AttributePackageManager.AttributePackage pkg : AttributePackageManager.parseList(payload.packagesJson())) {
+                if (pkg == null || pkg.getName() == null || pkg.getName().isBlank()) {
+                    continue;
+                }
+                AttributePackageManager.AttributePackage clean = pkg.copy();
+                clean.setName(pkg.getName().strip());
+                clean.setAttributes(new ArrayList<>(pkg.getAttributes().stream()
+                        .filter(id -> ResourceLocation.tryParse(id) != null).distinct().toList()));
+                packages.add(clean);
+            }
+            if (!AttributePackageManager.saveAndReload(packages)) {
+                fail(sender, "message.setweaver.save_failed");
+                return;
+            }
+            SetWeaverSync.broadcastRegistry(sender.getServer());
+            success(sender, "message.setweaver.packages_saved", packages.size());
+        });
+    }
+
+    /** Handles {@link ValidateRequestPayload}. */
+    public static void handleValidateRequest(ValidateRequestPayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> {
+            ServerPlayer sender = authorized(context);
+            if (sender == null) {
+                return;
+            }
+            var results = SetWeaverReloadListener.validateAllFiles();
+            PacketDistributor.sendToPlayer(sender, new ValidationResultsPayload(
+                    results.subList(0, Math.min(results.size(), ValidationResultsPayload.MAX_RESULTS))));
+        });
+    }
+
+    /** Handles {@link ReloadRequestPayload}. */
+    public static void handleReloadRequest(ReloadRequestPayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> {
+            ServerPlayer sender = authorized(context);
+            if (sender == null) {
+                return;
+            }
+            reloadAndSync(sender);
+            success(sender, "message.setweaver.reloaded");
+        });
+    }
+
+    private static ServerPlayer authorized(IPayloadContext context) {
+        if (context.player() instanceof ServerPlayer player && player.hasPermissions(PERMISSION_LEVEL)) {
+            return player;
+        }
+        if (context.player() instanceof ServerPlayer player) {
+            fail(player, "message.setweaver.permission_denied");
+        }
+        return null;
+    }
+
+    private static void reloadAndSync(ServerPlayer sender) {
+        SetWeaverReloadListener.loadAllEffects();
+        SetWeaverSync.broadcastRegistry(sender.getServer());
+    }
+
+    private static String packMcmeta() {
+        JsonObject pack = new JsonObject();
+        pack.addProperty("pack_format", SharedConstants.getCurrentVersion().getPackVersion(PackType.SERVER_DATA));
+        pack.addProperty("description", "SetWeaver custom tags");
+        JsonObject root = new JsonObject();
+        root.add("pack", pack);
+        return root.toString();
+    }
+
+    private static void success(ServerPlayer player, String key, Object... args) {
+        player.sendSystemMessage(Component.translatable(key, args).withStyle(ChatFormatting.GREEN));
+    }
+
+    private static void fail(ServerPlayer player, String key, Object... args) {
+        player.sendSystemMessage(Component.translatable(key, args).withStyle(ChatFormatting.RED));
     }
 }
