@@ -55,7 +55,7 @@ public final class SetFiles {
      * @return the path relative to {@link #baseDir()}, with {@code /} separators
      */
     public static String relativePath(String role, int level, String tag) {
-        String fileName = tag.replace(":", TAG_SEPARATOR) + EXTENSION;
+        String fileName = tag.replace(":", TAG_SEPARATOR).replace("/", TAG_SEPARATOR) + EXTENSION;
         boolean wildRole = ArmorSetDataRegistry.WILDCARD_ROLE.equals(role);
         if (wildRole && level == ArmorSetDataRegistry.WILDCARD_LEVEL) {
             return ALL_ROLES_ALL_LEVELS_DIR + "/" + fileName;
@@ -67,9 +67,10 @@ public final class SetFiles {
     }
 
     /**
-     * Turns a file name into the item tag it stands for.
+     * Turns a file name into the item tag it stands for. The first {@code __} separates namespace and path, every
+     * further {@code __} stands for a {@code /} in the path.
      *
-     * @param fileName e.g. {@code c__iron_armors.json}
+     * @param fileName e.g. {@code c__armors__iron.json} for {@code c:armors/iron}
      * @return the tag id, or {@code null} if the name is not valid
      */
     public static ResourceLocation tagFromFileName(String fileName) {
@@ -77,10 +78,12 @@ public final class SetFiles {
             return null;
         }
         String base = fileName.substring(0, fileName.length() - EXTENSION.length());
-        if (!base.contains(TAG_SEPARATOR)) {
+        int split = base.indexOf(TAG_SEPARATOR);
+        if (split <= 0) {
             return null;
         }
-        return ResourceLocation.tryParse(base.replaceFirst(TAG_SEPARATOR, ":"));
+        String path = base.substring(split + TAG_SEPARATOR.length()).replace(TAG_SEPARATOR, "/");
+        return ResourceLocation.tryBuild(base.substring(0, split), path);
     }
 
     /**
