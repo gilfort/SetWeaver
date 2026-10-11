@@ -4,7 +4,7 @@ All commands need **operator level 2**.
 
 | Command | Description |
 |---|---|
-| `/setweaver editor` | Opens the Sets Manager (see [Set Editor](Set-Editor)). |
+| `/setweaver editor` | Opens the editor (see [Set Editor](Set-Editor)). |
 | `/setweaver set <player> <role>` | Sets the player's role, keeps the level. |
 | `/setweaver set <player> <role> <level>` | Sets role and level (level ≥ 1). |
 | `/setweaver setyear <players> <level>` | Sets only the level of one or more players. |

@@ -5,6 +5,29 @@ There are no GameTests yet. Manual tests cover each change: run `./gradlew runCl
 
 ---
 
+## Editor redesign (branch `feature/editor-redesign`, 2.1.0)
+
+GameTests: none. Automated so far: `build`.
+
+- [ ] `/setweaver editor` opens the browser; GUI scales 2, 3, 4 and auto: nothing overlaps, columns collapse to
+      strips (←) when an entry is selected and open again on click; on small windows only one list column is open.
+- [ ] Sets: search filters the tag list; `!n` markers match the Validation entry; tag overview lists scopes and items.
+- [ ] **+ New set…**: tag picker (icons, search), role picker incl. typing a new role, level −/+ and "All levels";
+      "role without level" is refused; Create opens an unsaved set (● marker in the scope list).
+- [ ] Set form: display name; per threshold + Effect (icons) with −/+ level and ✕, + Attribute with value field, −/+,
+      operation cycle and result line, Copy…; changed fields get an orange dot; invalid value turns red and Save stays
+      disabled; Save writes the file and the form reloads ("Saved").
+- [ ] Multi-select: + Effect / + Attribute / + Item tick several entries, already added ones are greyed out,
+      search "leather" + Select all shown + Add adds all four pieces.
+- [ ] Save, Discard, Copy to…, Delete react to clicks in sets, packages and tags.
+- [ ] Discard, leaving with unsaved changes (other scope, other tag, Esc) asks first.
+- [ ] Copy to… another scope (new) and onto an existing scope (asks to replace); Delete asks and removes the file.
+- [ ] Attribute packages: new, rename, priority −/+, enabled, add / remove attributes, delete; Save stores all.
+- [ ] Item tags: search, read-only tags show a lock and no buttons; + New tag with namespace / name / items, Save,
+      `/reload`, the tag appears; editing a `setweaver:` tag removes / adds items.
+- [ ] Validation: broken file listed with ✘ / ⚠ and messages; clicking a loaded file opens its set; "Check again".
+- [ ] Two players: a save by one updates the open editor of the other.
+
 ## Upgrade to Minecraft 26.3 (branch `feature/upgrade-mc-26.3`)
 
 GameTests: none. Automated so far: `build` and a dedicated GameTest server start (`runSmokeTest`, removed again)

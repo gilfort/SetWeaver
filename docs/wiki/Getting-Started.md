@@ -20,11 +20,11 @@ config/setweaver/
 
 ## Your first set
 
-1. Run `/setweaver editor` to open the Sets Manager.
-2. Click **Create** to start the Set Wizard.
-3. **Step 1 – Wizard:** choose the item tag (e.g. `c:armors`), optionally a display name, and the scope
-   (role and level, or "All").
-4. **Step 2 – Editor:** pick the tab for the number of pieces (1–4), add effects and attributes, click **Save**.
+1. Run `/setweaver editor` to open the editor.
+2. Click **+ New set…** in the left column.
+3. In the dialog choose the item tag (e.g. `c:armors`), the scope (role and level, or "All") and optionally a
+   display name, then click **Create**.
+4. In the form add effects and attributes to the thresholds (1–4 pieces) and click **Save**.
 5. The server writes the file, reloads and sends the sets to all players. Put on the armor to try it.
 
 See [Set Editor](Set-Editor) for all editor features and [Roles & Levels](Roles-and-Levels) for scopes.

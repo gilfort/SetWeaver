@@ -14,20 +14,20 @@ No. The highest reached threshold replaces the lower ones. Different sets do sta
 Use scope "All Roles / All Levels" (folder `all_roles_all_levels/`).
 
 ### How do I remove a set?
-Select it in the Sets Manager and click ✖, or delete the file and run `/reload`.
+Open it in the editor and click **Delete**, or delete the file and run `/reload`.
 
 ### My new tag does not show up.
 Run `/reload` after saving a tag.
 
 ### Changes made directly in the files are not active.
-Run `/reload` or click **Reload** in the Sets Manager.
+Run `/reload` or click **Reload** in the editor.
 
 ## Common problems
 
 **Set bonus not active**
 1. `/setweaver check @s` – do role and level match the scope?
-2. Is the armor in the tag? (Sets Manager → Tags)
-3. Does the file pass **Validate**?
+2. Is the armor in the tag? (editor → Item tags)
+3. Does the file show up without problems under **Validation**?
 4. Are enough pieces worn for the first threshold?
 
 **Attribute values look wrong** – check the operation: `addition` is flat, `multiply_base` `0.4` = +40 %,

@@ -21,14 +21,14 @@ Holding **ALT** expands it again.
 
 ## Editor
 
-Sets Manager → **Packages**.
+Editor → **Attribute packages** (left column).
 
 | Action | Description |
 |---|---|
 | **+ Package** | New package |
 | **+ Attribute** | Add an attribute to the selected package |
-| ●/○ | Enable / disable the selected package |
-| ✖ | Delete the selected package or one of its attributes |
+| Enabled | Enable / disable the package |
+| ✕ / Delete | Remove an attribute / the package |
 | Name, Priority | Edit fields; lower priority wins |
 | **Save** | Sends all packages to the server, which saves and syncs them |
 

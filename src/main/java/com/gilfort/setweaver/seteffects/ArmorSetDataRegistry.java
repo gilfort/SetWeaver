@@ -80,14 +80,24 @@ public final class ArmorSetDataRegistry {
 
         /** @return a translatable description of role and level, e.g. "naturalist / Level 3" */
         public Component scopeLabel() {
-            if (isWildcardRole() && isWildcardLevel()) {
-                return Component.translatable("gui.setweaver.scope.universal");
-            }
-            if (isWildcardRole()) {
-                return Component.translatable("gui.setweaver.scope.all_roles", level);
-            }
-            return Component.translatable("gui.setweaver.scope.specific", role, level);
+            return ArmorSetDataRegistry.scopeLabel(role, level);
         }
+    }
+
+    /**
+     * @param role  role or {@link #WILDCARD_ROLE}
+     * @param level level or {@link #WILDCARD_LEVEL}
+     * @return a translatable description of the scope, e.g. "naturalist / Level 3"
+     */
+    public static Component scopeLabel(String role, int level) {
+        boolean wildRole = WILDCARD_ROLE.equals(role);
+        if (wildRole && level == WILDCARD_LEVEL) {
+            return Component.translatable("gui.setweaver.scope.universal");
+        }
+        if (wildRole) {
+            return Component.translatable("gui.setweaver.scope.all_roles", level);
+        }
+        return Component.translatable("gui.setweaver.scope.specific", role, level);
     }
 
     /**
