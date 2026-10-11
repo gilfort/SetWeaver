@@ -1,6 +1,7 @@
 package com.gilfort.setweaver.seteffects;
 
 import com.gilfort.setweaver.SetWeaver;
+import com.gilfort.setweaver.util.LogText;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonDeserializer;
@@ -98,9 +99,9 @@ public class SetWeaverReloadListener implements PreparableReloadListener {
             }
             for (Component message : parsed.result.messages()) {
                 if (parsed.entry == null) {
-                    SetWeaver.LOGGER.error("[SetWeaver] {} not loaded: {}", parsed.result.filePath(), message.getString());
+                    SetWeaver.LOGGER.error("[SetWeaver] {} not loaded: {}", parsed.result.filePath(), LogText.of(message));
                 } else {
-                    SetWeaver.LOGGER.warn("[SetWeaver] {}: {}", parsed.result.filePath(), message.getString());
+                    SetWeaver.LOGGER.warn("[SetWeaver] {}: {}", parsed.result.filePath(), LogText.of(message));
                 }
             }
         }
