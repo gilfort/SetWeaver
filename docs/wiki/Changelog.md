@@ -13,6 +13,8 @@ previous version. Version lines: `2.x` = Minecraft 26.3 (branch `main`), `1.x` =
   make room, an editable form with Save / Discard, markers for changed fields and a
   question before unsaved changes are lost. Sets Manager, Set Wizard, Set Editor, package editor and tag creator are
   merged into it; all their functions remain.
+- Effects, attributes and armor items can be picked several at a time; "Select all shown" takes every search hit
+  (e.g. all leather pieces).
 - Effects and attributes are picked from searchable lists with icons; levels and values are changed with − / + or
   typed in place; the result of an attribute modifier is shown below it.
 - New sets, extra scopes and copies are created in one dialog (tag, role, level, display name); copying onto an

@@ -389,8 +389,9 @@ public class SetBrowserScreen extends Screen {
     }
 
     private FormList newForm() {
-        return new FormList(this.minecraft, this.detailsX() + 1, this.top() + 2, this.detailsWidth() - 2, this.detailContentHeight(),
-                this::changedFields);
+        // The form always has a footer below it; the list must end above it or it swallows the footer's clicks
+        return new FormList(this.minecraft, this.detailsX() + 1, this.top() + 2, this.detailsWidth() - 2,
+                this.bottom() - this.top() - FOOTER - 4, this::changedFields);
     }
 
     private Set<String> changedFields() {
@@ -589,16 +590,18 @@ public class SetBrowserScreen extends Screen {
                 .map(h -> new RegistryPickerScreen.Option<>(h.key().identifier().toString(), h.value().getDisplayName(),
                         h.key().identifier().toString(), Hud.getMobEffectSprite(h), (ItemStack) null))
                 .toList();
-        this.minecraft.gui.setScreen(new RegistryPickerScreen<>(this, Component.translatable("gui.setweaver.browser.pick_effect"), options, id -> {
-            part.getEffects().add(SetEditorData.effect(id, 0));
-            this.rebuildWidgets();
-        }));
+        this.minecraft.gui.setScreen(RegistryPickerScreen.multi(this, Component.translatable("gui.setweaver.browser.pick_effect"), options,
+                id -> part.getEffects().stream().anyMatch(effect -> id.equals(effect.getEffect())), ids -> {
+                    ids.forEach(id -> part.getEffects().add(SetEditorData.effect(id, 0)));
+                    this.rebuildWidgets();
+                }));
     }
 
     private void pickAttribute(SetEditorData.PartConfig part) {
-        this.minecraft.gui.setScreen(new RegistryPickerScreen<>(this, Component.translatable("gui.setweaver.browser.pick_attribute"),
-                attributeOptions(), id -> {
-                    part.getAttributes().add(SetEditorData.attribute(id, 1.0, SetIds.ADDITION));
+        // The same attribute may appear several times (e.g. addition and multiply_base), so nothing counts as present
+        this.minecraft.gui.setScreen(RegistryPickerScreen.multi(this, Component.translatable("gui.setweaver.browser.pick_attribute"),
+                attributeOptions(), id -> false, ids -> {
+                    ids.forEach(id -> part.getAttributes().add(SetEditorData.attribute(id, 1.0, SetIds.ADDITION)));
                     this.rebuildWidgets();
                 }));
     }
@@ -657,14 +660,13 @@ public class SetBrowserScreen extends Screen {
                         () -> pkg.setEnabled(!pkg.isEnabled())))));
         rows.add(list.header(Component.translatable("gui.setweaver.browser.package.attributes", pkg.getAttributes().size()),
                 widget(Button.builder(Component.translatable("gui.setweaver.browser.add_attribute"), button -> this.minecraft.gui.setScreen(
-                        new RegistryPickerScreen<>(this, Component.translatable("gui.setweaver.browser.pick_attribute"), attributeOptions(), id -> {
-                            if (!pkg.getAttributes().contains(id)) {
-                                List<String> attributes = new ArrayList<>(pkg.getAttributes());
-                                attributes.add(id);
-                                pkg.setAttributes(attributes);
-                            }
-                            this.rebuildWidgets();
-                        }))).bounds(0, 0, 70, SMALL).build())));
+                        RegistryPickerScreen.multi(this, Component.translatable("gui.setweaver.browser.pick_attribute"), attributeOptions(),
+                                id -> pkg.getAttributes().contains(id), ids -> {
+                                    List<String> attributes = new ArrayList<>(pkg.getAttributes());
+                                    ids.stream().filter(id -> !attributes.contains(id)).forEach(attributes::add);
+                                    pkg.setAttributes(attributes);
+                                    this.rebuildWidgets();
+                                }))).bounds(0, 0, 70, SMALL).build())));
         if (pkg.getAttributes().isEmpty()) {
             rows.add(list.text(Component.translatable("gui.setweaver.browser.none"), Theme.DARK_GREY, 8));
         }
@@ -766,12 +768,11 @@ public class SetBrowserScreen extends Screen {
                         h.key().identifier().toString(), null, stack));
             }
         });
-        this.minecraft.gui.setScreen(new RegistryPickerScreen<>(this, Component.translatable("gui.setweaver.browser.pick_item"), options, id -> {
-            if (!draft.items().contains(id)) {
-                draft.items().add(id);
-            }
-            this.rebuildWidgets();
-        }));
+        this.minecraft.gui.setScreen(RegistryPickerScreen.multi(this, Component.translatable("gui.setweaver.browser.pick_item"), options,
+                id -> draft.items().contains(id), ids -> {
+                    ids.stream().filter(id -> !draft.items().contains(id)).forEach(draft.items()::add);
+                    this.rebuildWidgets();
+                }));
     }
 
     // ---------------------------------------------------------------- form widgets

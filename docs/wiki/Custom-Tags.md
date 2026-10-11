@@ -6,7 +6,8 @@ SetWeaver can create item tags in-game, e.g. a mixed chainmail + iron set or one
 
 1. Editor → **Item tags** → **+ New tag**.
 2. Enter **Namespace** (default `setweaver`) and **Tag Name** (e.g. `heavy_armor`; `a-z 0-9 _ - . /`).
-3. **+ Item** adds armor items (everything that can be worn in a helmet, chestplate, leggings or boots slot).
+3. **+ Item** adds armor items (everything that can be worn in a helmet, chestplate, leggings or boots slot); tick
+   several at once or search (e.g. `leather`) and use **Select all shown**.
 4. **Save** – the server writes the tag.
 5. Run `/reload` so Minecraft loads it. It then shows up in the tag browser and the Set Wizard.
 

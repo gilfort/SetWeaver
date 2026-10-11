@@ -60,6 +60,10 @@
   "gui.setweaver.picker.nothing": "Nothing found.",
   "gui.setweaver.picker.use": "✎ Use \"%s\"",
   "gui.setweaver.picker.use.detail": "new entry",
+  "gui.setweaver.picker.select_all": "Select all shown",
+  "gui.setweaver.picker.add": "Add (%s)",
+  "gui.setweaver.picker.present": "already added",
+  "gui.setweaver.picker.multi_hint": "Click to tick entries · search + \"Select all shown\" adds whole sets",
 
   "gui.setweaver.browser.title": "SetWeaver",
   "gui.setweaver.browser.reload": "Reload",

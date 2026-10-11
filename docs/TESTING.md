@@ -17,6 +17,9 @@ GameTests: none. Automated so far: `build`.
 - [ ] Set form: display name; per threshold + Effect (icons) with −/+ level and ✕, + Attribute with value field, −/+,
       operation cycle and result line, Copy…; changed fields get an orange dot; invalid value turns red and Save stays
       disabled; Save writes the file and the form reloads ("Saved").
+- [ ] Multi-select: + Effect / + Attribute / + Item tick several entries, already added ones are greyed out,
+      search "leather" + Select all shown + Add adds all four pieces.
+- [ ] Save, Discard, Copy to…, Delete react to clicks in sets, packages and tags.
 - [ ] Discard, leaving with unsaved changes (other scope, other tag, Esc) asks first.
 - [ ] Copy to… another scope (new) and onto an existing scope (asks to replace); Delete asks and removes the file.
 - [ ] Attribute packages: new, rename, priority −/+, enabled, add / remove attributes, delete; Save stores all.

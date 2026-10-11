@@ -36,6 +36,12 @@ editor is opened next time. **Reload** (top right) reloads all files on the serv
 ("All roles", an existing role, or type a new name), level (or "All levels") and an optional display name. If the
 scope already exists it is opened, otherwise a new unsaved set is created. A specific role needs a specific level.
 
+## Selecting several entries
+
+The lists for effects, attributes and armor items allow several entries at once: click entries to tick them (entries
+that are already added are greyed out) and confirm with **Add**. **Select all shown** ticks every entry that matches
+the search, e.g. type `leather` to add all four leather armor pieces to a tag in one go.
+
 ## Attribute packages, item tags, validation
 
 - **Attribute packages** – name, priority (lower wins), enabled flag and attributes; all packages are saved
