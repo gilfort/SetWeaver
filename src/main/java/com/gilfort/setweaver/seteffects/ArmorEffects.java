@@ -1,7 +1,7 @@
 package com.gilfort.setweaver.seteffects;
 
 import com.gilfort.setweaver.SetWeaver;
-import com.gilfort.setweaver.datagen.PlayerDataHelper;
+import com.gilfort.setweaver.util.PlayerDataHelper;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;

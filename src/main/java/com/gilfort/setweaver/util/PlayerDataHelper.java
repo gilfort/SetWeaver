@@ -1,4 +1,4 @@
-package com.gilfort.setweaver.datagen;
+package com.gilfort.setweaver.util;
 
 import com.gilfort.setweaver.SetWeaver;
 import com.gilfort.setweaver.util.SetWeaverPlayerData;

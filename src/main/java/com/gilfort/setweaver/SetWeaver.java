@@ -2,7 +2,7 @@ package com.gilfort.setweaver;
 
 import com.gilfort.setweaver.client.ArmorSetTooltipHandler;
 import com.gilfort.setweaver.component.ComponentRegistry;
-import com.gilfort.setweaver.datagen.PlayerDataHelper;
+import com.gilfort.setweaver.util.PlayerDataHelper;
 import com.gilfort.setweaver.network.PlayerDataPayload;
 import com.gilfort.setweaver.network.RegistrySyncPayload;
 import com.gilfort.setweaver.seteffects.ArmorEffects;
@@ -28,9 +28,7 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.fml.common.Mod;
-import net.neoforged.fml.config.ModConfig;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
-import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.server.ServerStartingEvent;
 
@@ -44,23 +42,11 @@ public class SetWeaver
 
     public SetWeaver(IEventBus modEventBus, ModContainer modContainer)
     {
-        // Register the commonSetup method for modloading
-        modEventBus.addListener(this::commonSetup);
-
         ComponentRegistry.register(modEventBus);
         SetWeaverPlayerData.ATTACHMENT_TYPES.register(modEventBus);
         ArmorEffects.register(modEventBus);
 
         NeoForge.EVENT_BUS.register(this);
-
-        modContainer.registerConfig(ModConfig.Type.COMMON, Config.SPEC);
-    }
-
-    private void commonSetup(final FMLCommonSetupEvent event)
-    {
-
-        LOGGER.info("HELLO FROM COMMON SETUP");
-
     }
 
 
@@ -150,7 +136,6 @@ public class SetWeaver
         public static void onClientSetup(FMLClientSetupEvent event)
         {
             LOGGER.info("[SetWeaver] Client is setting up!");
-            LOGGER.info("MINECRAFT NAME >> {}", Minecraft.getInstance().getUser().getName());
 
             // Register the tooltip handler for armor sets
             ArmorSetTooltipHandler.register();

@@ -1,7 +1,7 @@
 package com.gilfort.setweaver.command;
 
 
-import com.gilfort.setweaver.datagen.PlayerDataHelper;
+import com.gilfort.setweaver.util.PlayerDataHelper;
 import com.gilfort.setweaver.network.OpenSetsGuiPayload;
 import com.gilfort.setweaver.network.PlayerDataPayload;
 import com.gilfort.setweaver.seteffects.ArmorSetDataRegistry;
